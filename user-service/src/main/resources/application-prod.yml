@@ -1,0 +1,83 @@
+# ========================================
+# User Service 운영 환경 설정 파일
+# ========================================
+# 
+# 운영 환경에서 사용되는 설정입니다.
+# 보안과 성능을 고려한 설정으로 구성되어 있습니다.
+# application.yml의 기본 설정을 오버라이드합니다.
+
+# 서버 설정
+server:
+  # 서버 포트 (환경 변수에서 가져오거나 기본값 8081 사용)
+  port: ${SERVER_PORT:8081}
+
+spring:
+  # 데이터베이스 연결 설정 (MySQL)
+  datasource:
+    # MySQL 데이터베이스 연결 URL (환경 변수 사용)
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:deefacto_db}
+    # 데이터베이스 사용자명 (환경 변수에서 가져오거나 기본값 사용)
+    username: ${DB_USERNAME:deefacto}
+    # 데이터베이스 비밀번호 (환경 변수에서 가져오거나 기본값 사용)
+    password: ${DB_PASSWORD:deefacto1234}
+    # MySQL JDBC 드라이버 클래스명
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  # Redis 설정 (로그아웃 토큰 관리용)
+  data:
+    redis:
+      # Redis 서버 호스트 (환경 변수에서 가져오거나 기본값 사용)
+      host: ${REDIS_HOST:localhost}
+      # Redis 서버 포트 (환경 변수에서 가져오거나 기본값 사용)
+      port: ${REDIS_PORT:6379}
+
+  # JPA (Java Persistence API) 설정
+  jpa:
+    # Hibernate 설정
+    hibernate:
+      # 데이터베이스 스키마 검증 설정
+      # validate: 엔티티와 데이터베이스 스키마 일치 여부만 검증
+      # 운영 환경에서는 스키마 자동 변경을 방지하여 데이터 안전성 확보
+      ddl-auto: validate
+    
+    # SQL 쿼리 로그 출력 비활성화 (성능 및 보안상 운영 환경에서는 비활성화)
+    show-sql: false
+    
+    # Hibernate 추가 속성 설정
+    properties:
+      hibernate:
+        # SQL 쿼리 포맷팅 비활성화 (성능 최적화)
+        format_sql: false
+
+# 로깅 설정 (운영 환경용)
+logging:
+  level:
+    # 루트 로그 레벨 설정 (환경 변수에서 가져오거나 기본값 warn 사용)
+    root: ${LOGGING_LEVEL_ROOT:warn}
+    # User Service 패키지 로그 레벨 (info: 일반적인 정보 로그만 출력)
+    # 운영 환경에서는 debug 로그를 비활성화하여 성능 최적화 및 로그 파일 크기 관리
+    com.deefacto.user_service: ${LOGGING_LEVEL_USER_SERVICE:info}
+
+# JWT 토큰 설정
+jwt:
+  # JWT 서명에 사용할 시크릿 키 (환경 변수에서 가져오거나 기본값 사용)
+  # 실제 운영 환경에서는 환경 변수나 외부 설정으로 관리해야 함
+  secret-key: ${JWT_SECRET_KEY_PROD}
+  
+  # 리프레시 토큰 만료 시간 (환경 변수에서 가져오거나 기본값 86400초 사용)
+  # 86400초 = 24시간
+  exprires-in: ${JWT_REFRESH_TOKEN_EXPIRES_IN:86400}
+  
+  # 액세스 토큰 만료 시간 (환경 변수에서 가져오거나 기본값 900초 사용)
+  # 900초 = 15분
+  access-token-expires-in: ${JWT_ACCESS_TOKEN_EXPIRES_IN:900}
+
+# Spring Boot Actuator 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never 

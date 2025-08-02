@@ -16,8 +16,12 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 
-
-
+/**
+ * 사용자 등록 DTO
+ * 
+ * 사용자 회원가입 시 필요한 정보를 담는 DTO입니다.
+ * 유효성 검증 어노테이션을 통해 입력 데이터를 검증합니다.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -50,6 +54,11 @@ public class UserRegisterDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    /**
+     * DTO를 엔티티로 변환하는 메서드
+     * 
+     * @return User 엔티티 객체
+     */
     public User toEntity() {
         User user = new User();
         user.setEmployeeId(this.employeeId);
@@ -64,5 +73,4 @@ public class UserRegisterDto {
         user.setUpdatedAt(LocalDateTime.now());
         return user;
     }
-
 } 

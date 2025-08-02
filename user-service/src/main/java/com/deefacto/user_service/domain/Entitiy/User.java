@@ -17,6 +17,12 @@ import com.deefacto.user_service.domain.Enum.UserGender;
 
 import java.time.LocalDateTime;
 
+/**
+ * 사용자 엔티티
+ * 
+ * 사용자의 기본 정보와 인증 정보를 관리합니다.
+ * JPA를 통해 데이터베이스의 users 테이블과 매핑됩니다.
+ */
 @Entity
 @Table(name = "user")
 public class User {
@@ -25,7 +31,6 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Getter @Setter
     private Long id;
-
 
     @Column(name = "employee_id", nullable = false, unique = true)
     @Getter @Setter
@@ -39,12 +44,12 @@ public class User {
     @Getter @Setter
     private String name; // 이름
 
-
     @Column(name = "email", nullable = false)
     @Getter @Setter
     private String email; // 이메일
 
     @Column(name = "gender", nullable = false)
+    @Enumerated(EnumType.STRING)
     @Getter @Setter
     private UserGender gender; // 성별
 
