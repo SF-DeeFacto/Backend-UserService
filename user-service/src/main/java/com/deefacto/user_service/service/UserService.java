@@ -20,6 +20,7 @@ import com.deefacto.user_service.domain.dto.UserRegisterDto;
 import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.Enum.UserRole;
 import com.deefacto.user_service.domain.dto.UserChangePasswordDto;
+import com.deefacto.user_service.domain.dto.UserDeleteDto;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -256,5 +257,14 @@ public class UserService {
         userRepository.save(user);
         log.info("비밀번호 변경 완료: 사원번호 {}", employeeId);
     }
-    
+
+    public void deleteUser(UserDeleteDto userDeleteDto) {
+        String deleteEmployeeId = userDeleteDto.getEmployeeId();
+        User user = userRepository.findByEmployeeId(deleteEmployeeId);
+        if (user == null) {
+            throw new NotFound("User not found");
+        }
+        userRepository.delete(user);
+        log.info("사용자 삭제 완료: 사원번호 {}", deleteEmployeeId);
+    }
 }

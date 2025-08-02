@@ -4,6 +4,7 @@ import com.deefacto.user_service.common.dto.ApiResponseDto;
 import com.deefacto.user_service.common.exception.BadParameter;
 import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.dto.UserChangePasswordDto;
+import com.deefacto.user_service.domain.dto.UserDeleteDto;
 import com.deefacto.user_service.domain.repository.UserRepository;
 import com.deefacto.user_service.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -118,6 +119,25 @@ public class UserController {
         userService.changePassword(employeeId, userChangePasswordDto);
         
         return ApiResponseDto.createOk(null, "비밀번호 변경 성공");
+    }
+
+    @PostMapping("/delete")
+    public ApiResponseDto<String> deleteUser(
+        @RequestHeader(value = "X-Employee-Id", required = false) String employeeId,
+        @RequestHeader(value = "X-Role", required = false) String role,
+        @RequestBody @Valid UserDeleteDto userDeleteDto
+    ) {
+        if (employeeId == null || employeeId.isEmpty()) {
+            throw new BadParameter("X-Employee-Id header is required");
+        }
+        if (role == null || role.isEmpty()) {
+            throw new BadParameter("X-Role header is required");
+        }
+        if (!role.equals("ADMIN")) {
+            throw new BadParameter("You are not authorized to delete user");
+        }
+        userService.deleteUser(userDeleteDto);
+        return ApiResponseDto.createOk(null, "사용자 삭제 성공");
     }
 
 } 
