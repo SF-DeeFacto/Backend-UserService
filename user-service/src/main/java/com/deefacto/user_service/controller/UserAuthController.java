@@ -58,8 +58,12 @@ public class UserAuthController {
     @PostMapping("/register")
     public ApiResponseDto<Map<String, String>> registerUser(
         @RequestBody @Valid UserRegisterDto userRegisterDto,
+        @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId,
         @RequestHeader(value = "X-Role", required = false) String role
     ) {
+        if (adminEmployeeId == null || adminEmployeeId.isEmpty()) {
+            throw new BadParameter("X-Employee-Id header is required");
+        }
         if (role == null || role.isEmpty()) {
             throw new BadParameter("X-Role header is required");
         }
@@ -68,7 +72,7 @@ public class UserAuthController {
         }
 
         // UserService를 통해 사용자 등록 처리
-        userService.registerUser(userRegisterDto);
+        userService.registerUser(userRegisterDto, adminEmployeeId);
         
         // 응답 데이터 구성
         data.put("employeeId", userRegisterDto.getEmployeeId());
@@ -110,7 +114,10 @@ public class UserAuthController {
      * @return 로그아웃 성공 응답
      */
     @PostMapping("/logout")
-    public ApiResponseDto<String> logoutUser(HttpServletRequest request) {
+    public ApiResponseDto<String> logoutUser(
+        @RequestHeader(value = "X-Employee-Id", required = false) String employeeId,
+        HttpServletRequest request
+    ) {
         // API Gateway에서 이미 토큰을 검증하고 X-Employee-Id 헤더로 전달
         // 로그아웃은 클라이언트에서 토큰을 전송해야 하므로
         // Authorization 헤더에서 토큰을 추출하여 처리
@@ -119,6 +126,8 @@ public class UserAuthController {
             // "Bearer " 접두사를 제거하여 실제 토큰만 추출
             String token = bearerToken.substring(7);
             userService.logout(token);
+        } else {
+            throw new BadParameter("Authorization header with Bearer token is required");
         }
         return ApiResponseDto.createOk(null, "로그아웃 성공");
     }

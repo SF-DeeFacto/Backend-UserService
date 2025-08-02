@@ -5,13 +5,14 @@ import com.deefacto.user_service.common.exception.BadParameter;
 import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.dto.UserChangePasswordDto;
 import com.deefacto.user_service.domain.dto.UserDeleteDto;
+import com.deefacto.user_service.domain.dto.UserSearchDto;
+import com.deefacto.user_service.domain.dto.UserInfoResponseDto;
 import com.deefacto.user_service.domain.repository.UserRepository;
 import com.deefacto.user_service.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.data.domain.Page;
 
 /**
  * 사용자 관련 API 엔드포인트를 제공하는 컨트롤러
@@ -40,15 +41,13 @@ public class UserController {
     /**
      * 현재 로그인한 사용자의 프로필 정보를 조회하는 API
      * 
-     * API Gateway에서 전달받은 헤더를 사용하여 사용자 정보를 조회합니다.
-     * 
      * @param employeeId API Gateway에서 파싱한 사용자 사원번호 (X-Employee-Id 헤더)
      * @param role API Gateway에서 파싱한 사용자 역할 (X-Role 헤더)
      * @return 사용자 프로필 정보 (사원번호, 역할, 이름, 이메일)
      * @throws BadParameter 필수 헤더가 누락된 경우
      */
-    @GetMapping("/profile")
-    public ApiResponseDto<Map<String, Object>> getProfile(
+    @GetMapping("/info/profile")
+    public ApiResponseDto<UserInfoResponseDto> getProfile(
         @RequestHeader(value = "X-Employee-Id", required = false) String employeeId,
         @RequestHeader(value = "X-Role", required = false) String role
     ) {
@@ -63,38 +62,56 @@ public class UserController {
         // API Gateway에서 이미 파싱된 정보를 바로 사용하여 데이터베이스 조회
         User user = userRepository.findByEmployeeId(employeeId);
         
-        // 응답 데이터 구성
-        Map<String, Object> profile = new HashMap<>();
-        profile.put("employeeId", employeeId);
-        profile.put("role", role);
-        profile.put("name", user != null ? user.getName() : "Unknown");
-        profile.put("email", user != null ? user.getEmail() : "Unknown");
+        // UserInfoResponseDto로 변환
+        UserInfoResponseDto profile = UserInfoResponseDto.from(user);
         
         return ApiResponseDto.createOk(profile, "프로필 조회 성공");
     }
     
+    
     /**
-     * 현재 로그인한 사용자의 기본 정보를 조회하는 API
+     * 전체 사용자 목록을 페이징으로 조회하는 API
      * 
-     * @param employeeId API Gateway에서 파싱한 사용자 사원번호 (X-Employee-Id 헤더)
-     * @return 현재 사용자 기본 정보
-     * @throws BadParameter X-Employee-Id 헤더가 누락된 경우
+     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
+     * @param size 페이지 크기 (기본값: 10)
+     * @param name 검색할 이름 (선택사항)
+     * @param email 검색할 이메일 (선택사항)
+     * @return 페이징된 사용자 목록
      */
-    @GetMapping("/me")
-    public ApiResponseDto<Map<String, String>> getCurrentUser(
-        @RequestHeader(value = "X-Employee-Id", required = false) String employeeId
+    @GetMapping("/info/search")
+    public ApiResponseDto<Page<UserInfoResponseDto>> searchUsers(
+        @RequestParam(value = "page", defaultValue = "0") Integer page,
+        @RequestParam(value = "size", defaultValue = "10") Integer size,
+        @RequestParam(value = "name", required = false) String name,
+        @RequestParam(value = "email", required = false) String email
     ) {
-        // API Gateway에서 전달받은 헤더 검증
-        if (employeeId == null || employeeId.isEmpty()) {
+        // 검색 조건 DTO 생성 (employeeId는 null로 설정하여 전체 조회)
+        UserSearchDto searchDto = new UserSearchDto(page, size, name, email, null);
+        
+        // 사용자 검색 실행
+        Page<UserInfoResponseDto> result = userService.searchUsers(searchDto);
+        
+        return ApiResponseDto.createOk(result, "사용자 목록 조회 성공");
+    }
+
+    // 사용자 정보 변경
+    @PostMapping("info/change")
+    public ApiResponseDto<String> changeUserInfo(
+        @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId,
+        @RequestHeader(value = "X-Role", required = false) String role,
+        @RequestBody @Valid UserInfoResponseDto userInfoResponseDto
+    ) {
+        if (adminEmployeeId == null || adminEmployeeId.isEmpty()) {
             throw new BadParameter("X-Employee-Id header is required");
         }
-        
-        // 이미 파싱된 employeeId를 바로 사용하여 응답 구성
-        Map<String, String> userInfo = new HashMap<>();
-        userInfo.put("employeeId", employeeId);
-        userInfo.put("message", "현재 로그인한 사용자 정보");
-        
-        return ApiResponseDto.createOk(userInfo, "현재 사용자 정보 조회 성공");
+        if (role == null || role.isEmpty()) {
+            throw new BadParameter("X-Role header is required");
+        }
+        if (!role.equals("ADMIN")) {
+            throw new BadParameter("You are not authorized to change user info");
+        }
+        userService.changeUserInfo(userInfoResponseDto, adminEmployeeId);
+        return ApiResponseDto.createOk(null, "사용자 정보 변경 성공");
     }
     
     /**
@@ -116,18 +133,26 @@ public class UserController {
         if (employeeId == null || employeeId.isEmpty()) {
             throw new BadParameter("X-Employee-Id header is required");
         }
+        
+        // 본인 또는 ADMIN만 비밀번호 변경 가능
+        if (!employeeId.equals(userChangePasswordDto.getEmployeeId()) && 
+            !"ADMIN".equals(role)) {
+            throw new BadParameter("You can only change your own password or need ADMIN role");
+        }
+        
         userService.changePassword(employeeId, userChangePasswordDto);
         
         return ApiResponseDto.createOk(null, "비밀번호 변경 성공");
     }
 
+    // 사용자 삭제
     @PostMapping("/delete")
     public ApiResponseDto<String> deleteUser(
-        @RequestHeader(value = "X-Employee-Id", required = false) String employeeId,
+        @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId,
         @RequestHeader(value = "X-Role", required = false) String role,
         @RequestBody @Valid UserDeleteDto userDeleteDto
     ) {
-        if (employeeId == null || employeeId.isEmpty()) {
+        if (adminEmployeeId == null || adminEmployeeId.isEmpty()) {
             throw new BadParameter("X-Employee-Id header is required");
         }
         if (role == null || role.isEmpty()) {

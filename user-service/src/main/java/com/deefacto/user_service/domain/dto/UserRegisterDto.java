@@ -8,13 +8,11 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import com.deefacto.user_service.domain.Entitiy.User;
-import com.deefacto.user_service.domain.Enum.UserGender;
-import com.deefacto.user_service.domain.Enum.UserRole;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Pattern;
+
 
 /**
  * 사용자 등록 DTO
@@ -41,7 +39,7 @@ public class UserRegisterDto {
     @Email(message = "Invalid email address")
     private String email;
 
-    private UserGender gender;
+    private String gender;
 
     @NotBlank(message = "Department is compulsory")
     private String department;
@@ -49,10 +47,15 @@ public class UserRegisterDto {
     @NotBlank(message = "Position is compulsory")
     private String position;
 
-    private UserRole role;
+    private String role;
+
+    private String shift;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private String created_pr;
+    private String updated_pr;
 
     /**
      * DTO를 엔티티로 변환하는 메서드
@@ -69,8 +72,11 @@ public class UserRegisterDto {
         user.setDepartment(this.department);
         user.setPosition(this.position);
         user.setRole(this.role);
+        user.setShift(this.shift);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
+        user.setCreated_pr(this.created_pr);
+        user.setUpdated_pr(this.updated_pr);
         return user;
     }
 } 

@@ -12,17 +12,20 @@ import org.springframework.transaction.annotation.Transactional;
 import com.deefacto.user_service.domain.repository.UserRepository;
 
 import java.util.concurrent.TimeUnit;
+import java.time.LocalDateTime;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.deefacto.user_service.domain.dto.UserRegisterDto;
 import com.deefacto.user_service.domain.Entitiy.User;
-import com.deefacto.user_service.domain.Enum.UserRole;
 import com.deefacto.user_service.domain.dto.UserChangePasswordDto;
 import com.deefacto.user_service.domain.dto.UserDeleteDto;
-
-import jakarta.servlet.http.HttpServletRequest;
+import com.deefacto.user_service.domain.dto.UserSearchDto;
+import com.deefacto.user_service.domain.dto.UserInfoResponseDto;
 
 /**
  * 사용자 관련 비즈니스 로직을 처리하는 서비스 클래스
@@ -60,16 +63,27 @@ public class UserService {
      * 새로운 사용자를 등록하는 메서드
      * 
      * 처리 과정:
-     * 1. DTO를 엔티티로 변환
-     * 2. 비밀번호를 BCrypt로 암호화
-     * 3. 기본 권한 설정 (role이 null인 경우 USER로 설정)
-     * 4. 데이터베이스에 저장
+     * 1. 중복 사번 체크 (이미 존재하는 사번인지 확인)
+     * 2. DTO를 엔티티로 변환 (데이터 전송 객체 → 데이터베이스 엔티티)
+     * 3. 비밀번호를 BCrypt로 암호화 (단방향 해시, 복호화 불가)
+     * 4. 기본값 설정 (권한, 활성여부, 근무시간)
+     * 5. 등록자 정보 기록 (감사 로그용)
+     * 6. 데이터베이스에 저장
      * 
-     * @param userRegisterDto 사용자 등록 정보 DTO
+     * @param userRegisterDto 사용자 등록 정보 DTO (사원번호, 비밀번호, 이름, 이메일 등)
+     * @param createdBy 사용자를 등록한 관리자의 사원번호
+     * @throws BadParameter 중복 사번으로 등록 시도하는 경우
      */
     @Transactional
-    public void registerUser(UserRegisterDto userRegisterDto) {
-        // DTO를 엔티티로 변환
+    public void registerUser(UserRegisterDto userRegisterDto, String createdBy) {
+        // 중복 사번 체크 (unique 제약조건 위반 방지)
+        User existingUser = userRepository.findByEmployeeId(userRegisterDto.getEmployeeId());
+        if (existingUser != null) {
+            log.warn("중복 사번 등록 시도: {}", userRegisterDto.getEmployeeId());
+            throw new BadParameter("이미 존재하는 사번입니다.");
+        }
+        
+        // DTO를 엔티티로 변환 (데이터 전송 객체 → 데이터베이스 엔티티)
         User user = userRegisterDto.toEntity();
         
         // 비밀번호를 BCrypt로 암호화하여 저장
@@ -78,8 +92,20 @@ public class UserService {
 
         // 기본 권한 설정 (role이 null인 경우 USER로 설정)
         if (user.getRole() == null) {
-            user.setRole(UserRole.USER);
+            user.setRole("USER");
         }
+        
+        // 활성 여부 설정 (새로 등록된 사용자는 기본적으로 활성 상태)
+        user.setActive(true);
+
+        // 기본 근무시간 설정 (shift가 null인 경우 기본값 "A" 설정)
+        if (user.getShift() == null) {
+            user.setShift("A");
+        }
+
+        // 등록자 및 수정자 정보 기록 (감사 로그용)
+        user.setCreated_pr(createdBy);
+        user.setUpdated_pr(createdBy);
 
         // 데이터베이스에 사용자 정보 저장
         userRepository.save(user);
@@ -91,11 +117,11 @@ public class UserService {
      * 사용자 로그인을 처리하고 JWT 토큰을 발급하는 메서드
      * 
      * 처리 과정:
-     * 1. 사원번호로 사용자 조회
-     * 2. 비밀번호 검증 (BCrypt matches 사용)
-     * 3. 중복 로그인 확인 (Redis 기반)
-     * 4. 액세스 토큰과 리프레시 토큰 발급
-     * 5. Redis에 사용자별 토큰 저장 (후입/선입 차단 정책)
+     * 1. 사원번호로 사용자 조회 (데이터베이스에서 사용자 정보 확인)
+     * 2. 비밀번호 검증 (BCrypt matches로 암호화된 비밀번호와 비교)
+     * 3. 중복 로그인 확인 (Redis에서 기존 토큰 확인)
+     * 4. 액세스 토큰과 리프레시 토큰 발급 (JWT 생성)
+     * 5. Redis에 사용자별 토큰 저장 (후입/선입 차단 정책 적용)
      * 
      * @param loginDto 로그인 정보 DTO (사원번호, 비밀번호)
      * @return 액세스 토큰과 리프레시 토큰이 포함된 DTO
@@ -107,32 +133,33 @@ public class UserService {
     public TokenDto.AccessRefreshToken login(UserLoginDto loginDto) {
         log.info("로그인 시도: 사원번호 {}", loginDto.getEmployeeId());
         
-        // 사원번호로 사용자 조회
+        // 사원번호로 사용자 조회 (데이터베이스에서 사용자 정보 확인)
         User user = userRepository.findByEmployeeId(loginDto.getEmployeeId());
         if (user == null) {
             log.warn("존재하지 않는 사용자: 사원번호 {}", loginDto.getEmployeeId());
             throw new NotFound("User/Password is incorrect");
         }
         
+        // 디버깅을 위한 비밀번호 정보 로깅 (개발 환경에서만 사용)
         log.info("사용자 발견: {}, 저장된 비밀번호: {}", user.getEmployeeId(), user.getPassword());
         log.info("입력된 비밀번호: {}", loginDto.getPassword());
         
         // BCrypt를 사용하여 비밀번호 검증
-        // encode()된 비밀번호와 원본 비밀번호를 비교
+        // encode()된 비밀번호와 원본 비밀번호를 비교 (단방향 해시 검증)
         if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
             log.warn("비밀번호 불일치: 사원번호 {}", loginDto.getEmployeeId());
             throw new BadParameter("User/Password is incorrect");
         }
 
-        // 중복 로그인 확인 (후입/선입 차단 정책)
+        // 중복 로그인 확인 (후입/선입 차단 정책 - Redis 기반)
         checkDuplicateLogin(loginDto.getEmployeeId());
 
         log.info("로그인 성공: 사원번호 {}", loginDto.getEmployeeId());
         
-        // 로그인 성공 시 액세스 토큰과 리프레시 토큰 발급
+        // 로그인 성공 시 액세스 토큰과 리프레시 토큰 발급 (JWT 생성)
         TokenDto.AccessRefreshToken token = tokenGenerator.generateAccessRefreshToken(loginDto.getEmployeeId());
         
-        // Redis에 사용자별 토큰 저장 (후입/선입 차단 정책)
+        // Redis에 사용자별 토큰 저장 (후입/선입 차단 정책 적용)
         saveUserTokenToRedis(loginDto.getEmployeeId(), token);
         
         return token;
@@ -254,6 +281,10 @@ public class UserService {
         }
         // 3. 비밀번호 업데이트
         user.setPassword(passwordEncoder.encode(userChangePasswordDto.getNewPassword()));
+
+        // 정보 변경 시점의 시간 기록
+        user.setUpdatedAt(LocalDateTime.now());
+        
         userRepository.save(user);
         log.info("비밀번호 변경 완료: 사원번호 {}", employeeId);
     }
@@ -266,5 +297,110 @@ public class UserService {
         }
         userRepository.delete(user);
         log.info("사용자 삭제 완료: 사원번호 {}", deleteEmployeeId);
+    }
+    
+    /**
+     * 사용자 목록을 페이징으로 검색하는 메서드
+     * 
+     * @param searchDto 검색 조건 DTO
+     * @return 검색 결과 페이지 (UserInfoResponseDto로 변환)
+     */
+    public Page<UserInfoResponseDto> searchUsers(UserSearchDto searchDto) {
+        // 페이징 정보 생성
+        Pageable pageable = PageRequest.of(
+            searchDto.getPage() != null ? searchDto.getPage() : 0,
+            searchDto.getSize() != null ? searchDto.getSize() : 10
+        );
+        
+        // 검색 조건에서 null 값 처리
+        String name = searchDto.getName() != null && !searchDto.getName().trim().isEmpty() 
+            ? searchDto.getName().trim() : null;
+        String email = searchDto.getEmail() != null && !searchDto.getEmail().trim().isEmpty() 
+            ? searchDto.getEmail().trim() : null;
+        String employeeId = searchDto.getEmployeeId() != null && !searchDto.getEmployeeId().trim().isEmpty() 
+            ? searchDto.getEmployeeId().trim() : null;
+        
+        log.info("사용자 검색: 페이지={}, 크기={}, 이름={}, 이메일={}, 사원번호={}", 
+            pageable.getPageNumber(), pageable.getPageSize(), name, email, employeeId);
+        
+        // 조건부 검색 실행
+        Page<User> userPage = userRepository.findByConditions(name, email, employeeId, pageable);
+        
+        // User 엔티티를 UserInfoResponseDto로 변환
+        Page<UserInfoResponseDto> result = userPage.map(UserInfoResponseDto::from);
+        
+        log.info("검색 결과: 총 {}개 중 {}개 조회", result.getTotalElements(), result.getContent().size());
+        
+        return result;
+    }
+
+    /**
+     * 사용자 정보를 변경하는 메서드
+     * 
+     * 처리 과정:
+     * 1. 사원번호로 사용자 조회
+     * 2. 변경할 정보가 null이 아닌 경우에만 해당 필드 업데이트
+     * 3. 변경 시점의 시간과 변경자 정보 기록
+     * 4. 데이터베이스에 변경사항 저장
+     * 
+     * @param userInfoResponseDto 변경할 사용자 정보 DTO
+     * @param updatedBy 변경을 수행한 관리자의 사원번호
+     * @throws NotFound 사용자가 존재하지 않는 경우
+     */
+    @Transactional
+    public void changeUserInfo(UserInfoResponseDto userInfoResponseDto, String updatedBy) {
+        // 사원번호로 사용자 조회
+        User user = userRepository.findByEmployeeId(userInfoResponseDto.getEmployeeId());
+        if (user == null) {
+            throw new NotFound("User not found");
+        }
+        
+        // 디버깅을 위한 변경 전후 정보 로깅
+        log.info("변경 전 사용자 정보: {}", user);
+        log.info("변경할 정보: {}", userInfoResponseDto);
+        
+        // 각 필드별 null 체크 후 업데이트 (부분 업데이트 지원)
+        if (userInfoResponseDto.getName() != null) {
+            user.setName(userInfoResponseDto.getName());
+            log.info("이름 변경: {}", userInfoResponseDto.getName());
+        }
+        if (userInfoResponseDto.getEmail() != null) {
+            user.setEmail(userInfoResponseDto.getEmail());
+            log.info("이메일 변경: {}", userInfoResponseDto.getEmail());
+        }
+        if (userInfoResponseDto.getGender() != null) {
+            user.setGender(userInfoResponseDto.getGender());
+            log.info("성별 변경: {}", userInfoResponseDto.getGender());
+        }
+        if (userInfoResponseDto.getDepartment() != null) {
+            user.setDepartment(userInfoResponseDto.getDepartment());
+            log.info("부서 변경: {}", userInfoResponseDto.getDepartment());
+        }
+        if (userInfoResponseDto.getPosition() != null) {
+            user.setPosition(userInfoResponseDto.getPosition());
+            log.info("직급 변경: {}", userInfoResponseDto.getPosition());
+        }
+        if (userInfoResponseDto.getRole() != null) {
+            user.setRole(userInfoResponseDto.getRole());
+            log.info("권한 변경: {}", userInfoResponseDto.getRole());
+        }
+        if (userInfoResponseDto.getShift() != null) {
+            user.setShift(userInfoResponseDto.getShift());
+            log.info("근무시간 변경: {}", userInfoResponseDto.getShift());
+        }
+        
+        // boolean 필드는 null 체크 없이 직접 설정 (기본값 false)
+        user.setActive(userInfoResponseDto.isActive());
+        log.info("활성여부 변경: {}", userInfoResponseDto.isActive());
+        
+        // 정보 변경 시점의 시간과 변경자 기록 (감사 로그용)
+        user.setUpdatedAt(LocalDateTime.now());
+        user.setUpdated_pr(updatedBy);
+        
+        // 변경된 사용자 정보를 데이터베이스에 저장
+        User savedUser = userRepository.save(user);
+        log.info("변경 후 사용자 정보: {}", savedUser);
+        
+        log.info("사용자 정보 변경 완료: 사원번호 {}, 변경자 {}", userInfoResponseDto.getEmployeeId(), updatedBy);
     }
 }
