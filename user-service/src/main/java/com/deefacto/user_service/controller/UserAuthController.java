@@ -80,6 +80,7 @@ public class UserAuthController {
     public ApiResponseDto<TokenDto.AccessRefreshToken> loginUser(@RequestBody @Valid UserLoginDto userLoginDto) {
         // UserService를 통해 로그인 처리 및 토큰 발급
         TokenDto.AccessRefreshToken token = userService.login(userLoginDto);
+        
         return ApiResponseDto.createOk(token, "로그인 성공");
     }
 

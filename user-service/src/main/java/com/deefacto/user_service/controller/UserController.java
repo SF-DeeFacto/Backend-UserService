@@ -3,11 +3,12 @@ package com.deefacto.user_service.controller;
 import com.deefacto.user_service.common.dto.ApiResponseDto;
 import com.deefacto.user_service.common.exception.BadParameter;
 import com.deefacto.user_service.domain.Entitiy.User;
+import com.deefacto.user_service.domain.dto.UserChangePasswordDto;
 import com.deefacto.user_service.domain.repository.UserRepository;
 import com.deefacto.user_service.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
+import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,7 +26,7 @@ import java.util.Map;
  * - 비밀번호 변경 (예정)
  */
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/user")
 @RequiredArgsConstructor
 public class UserController {
     
@@ -104,23 +105,19 @@ public class UserController {
      * @return 비밀번호 변경 결과
      * @throws BadParameter X-Employee-Id 헤더가 누락된 경우
      */
-    @PostMapping("/change-password")
+    @PostMapping("/info/password")
     public ApiResponseDto<String> changePassword(
         @RequestHeader(value = "X-Employee-Id", required = false) String employeeId,
-        @RequestParam String oldPassword,
-        @RequestParam String newPassword
+        @RequestHeader(value = "X-Role", required = false) String role,
+        @RequestBody @Valid UserChangePasswordDto userChangePasswordDto
     ) {
         // API Gateway에서 전달받은 헤더 검증
         if (employeeId == null || employeeId.isEmpty()) {
             throw new BadParameter("X-Employee-Id header is required");
         }
-        
-        // API Gateway에서 이미 검증된 employeeId 사용
-        // TODO: 비밀번호 변경 로직 구현
-        // 1. 현재 비밀번호 검증
-        // 2. 새 비밀번호 유효성 검증
-        // 3. 비밀번호 업데이트
+        userService.changePassword(employeeId, userChangePasswordDto);
         
         return ApiResponseDto.createOk(null, "비밀번호 변경 성공");
     }
+
 } 

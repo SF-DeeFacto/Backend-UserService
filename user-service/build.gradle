@@ -45,8 +45,6 @@ dependencies {
 	// JPA (Java Persistence API) - 데이터베이스 ORM
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	
-	// Spring Security - 인증 및 권한 관리
-	implementation 'org.springframework.boot:spring-boot-starter-security'
 	
 	// Validation - 요청 데이터 유효성 검증
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -72,6 +70,13 @@ dependencies {
 	
 	// JWT Jackson (JSON 직렬화/역직렬화)
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+
+	// ========================================
+	// 보안 라이브러리
+	// ========================================
+	
+	// BCrypt - 비밀번호 암호화
+	implementation 'org.mindrot:jbcrypt:0.4'
 
 	// ========================================
 	// 개발 도구 및 유틸리티
