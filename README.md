@@ -27,14 +27,22 @@ User Service는 API Gateway 아키텍처에서 사용자 인증 및 관리 기�
 cp env.example .env
 
 # .env 파일에서 실제 값으로 수정
-# 예시:
-SERVER_PORT=8081
-DB_HOST=localhost
-DB_PASSWORD=your_password
-JWT_SECRET_KEY=your_secret_key
+# 특히 JWT 시크릿 키는 반드시 변경해야 합니다!
 ```
 
-### 2. 인프라 서비스 실행
+### 2. JWT 시크릿 키 생성 (중요!)
+
+```bash
+# 개발 환경용 시크릿 키 생성 (Base64 인코딩)
+echo -n "your-dev-secret-key-here-minimum-32-characters-long" | base64
+
+# 운영 환경용 시크릿 키 생성 (Base64 인코딩)
+echo -n "your-production-secret-key-here-minimum-32-characters-long" | base64
+
+# 생성된 키를 .env 파일의 JWT_SECRET_KEY_DEV, JWT_SECRET_KEY_PROD에 설정
+```
+
+### 3. 인프라 서비스 실행
 
 ```bash
 # Docker Compose로 MySQL, Redis 실행
@@ -44,7 +52,7 @@ docker-compose up -d
 docker-compose ps
 ```
 
-### 3. 애플리케이션 실행
+### 4. 애플리케이션 실행
 
 #### 방법 1: 스크립트 사용 (권장)
 ```bash
@@ -64,6 +72,13 @@ export $(cat .env | grep -v '^#' | xargs) && cd user-service && ./gradlew bootRu
 
 > 💡 **참고**: IDE 설정에서 .env 파일이 자동으로 로드되도록 구성되어 있습니다.
 
+### 5. 환경 변수 테스트
+
+```bash
+# KeyTest 클래스로 환경 변수가 제대로 로드되는지 확인
+export $(cat .env | grep -v '^#' | xargs) && java -cp user-service/build/classes/java/main com.deefacto.user_service.dummy.KeyTest
+```
+
 ## ⚙️ 환경 변수 설정
 
 ### 필수 환경 변수
@@ -78,7 +93,8 @@ export $(cat .env | grep -v '^#' | xargs) && cd user-service && ./gradlew bootRu
 | `DB_PASSWORD` | 데이터베이스 비밀번호 | deefacto1234 | your_password |
 | `REDIS_HOST` | Redis 호스트 | localhost | localhost |
 | `REDIS_PORT` | Redis 포트 | 6379 | 6379 |
-| `JWT_SECRET_KEY` | JWT 시크릿 키 | (기본값) | your_secret_key |
+| `JWT_SECRET_KEY_DEV` | 개발 환경 JWT 시크릿 키 (Base64)  |
+| `JWT_SECRET_KEY_PROD` | 운영 환경 JWT 시크릿 키 (Base64)  |
 
 ### 선택적 환경 변수
 
@@ -98,6 +114,18 @@ export $(cat .env | grep -v '^#' | xargs) && cd user-service && ./gradlew bootRu
 | `DEV_FORMAT_SQL` | SQL 포맷팅 | true |
 | `DEV_HIBERNATE_DDL_AUTO` | Hibernate DDL 자동 생성 | update |
 
+## 🔧 IDE 설정
+
+### VSCode 설정
+- `.vscode/settings.json`: .env 파일 자동 로드 설정
+- `.vscode/launch.json`: 디버깅 시 .env 파일 사용 설정
+
+### IntelliJ IDEA 설정
+- `.idea/workspace.xml`: 실행 설정에 .env 파일 연결
+
+### Spring Boot 설정
+- `application.yml`: .env 파일 자동 로드 설정 포함
+
 ## 📡 API 엔드포인트
 
 ### 인증 관련 API (공개)
@@ -112,6 +140,10 @@ export $(cat .env | grep -v '^#' | xargs) && cd user-service && ./gradlew bootRu
 - `GET /users/me` - 현재 사용자 정보 조회
 - `POST /users/change-password` - 비밀번호 변경
 
+### 헬스체크 API
+
+- `GET /actuator/health` - 애플리케이션 상태 확인
+
 ## 🔧 기술 스택
 
 - **Framework**: Spring Boot 3.5.4
@@ -121,42 +153,68 @@ export $(cat .env | grep -v '^#' | xargs) && cd user-service && ./gradlew bootRu
 - **Security**: Spring Security + JWT
 - **Build Tool**: Gradle
 - **Container**: Docker & Docker Compose
+- **Environment**: .env 파일 지원 (IDE 자동 로드)
 
 ## 📁 프로젝트 구조
 
 ```
-user-service/
-├── src/main/java/com/deefacto/user_service/
-│   ├── config/           # 설정 클래스
-│   ├── controller/       # REST API 컨트롤러
-│   ├── service/          # 비즈니스 로직
-│   ├── domain/           # 도메인 모델
-│   ├── secret/jwt/       # JWT 관련 클래스
-│   └── common/           # 공통 클래스
-├── src/main/resources/
-│   ├── application.yml   # 기본 설정
-│   ├── application-dev.yml   # 개발 환경 설정
-│   ├── application-prod.yml  # 운영 환경 설정
-│   └── db/migration/     # 데이터베이스 마이그레이션
-├── docker-compose.yml    # 인프라 서비스 설정
-├── env.example          # 환경 변수 예시
-└── build.gradle         # 빌드 설정
+Backend-UserService/
+├── user-service/                    # Spring Boot 애플리케이션
+│   ├── src/main/java/com/deefacto/user_service/
+│   │   ├── config/                 # 설정 클래스
+│   │   ├── controller/             # REST API 컨트롤러
+│   │   ├── service/                # 비즈니스 로직
+│   │   ├── domain/                 # 도메인 모델
+│   │   │   ├── Entitiy/           # JPA 엔티티
+│   │   │   ├── Enum/              # 열거형
+│   │   │   ├── dto/               # 데이터 전송 객체
+│   │   │   └── repository/        # 데이터 접근 계층
+│   │   ├── secret/jwt/            # JWT 관련 클래스
+│   │   ├── common/                # 공통 클래스
+│   │   ├── advice/                # 예외 처리 및 검증
+│   │   └── dummy/                 # 테스트용 클래스
+│   ├── src/main/resources/
+│   │   ├── application.yml        # 기본 설정
+│   │   ├── application-dev.yml    # 개발 환경 설정
+│   │   ├── application-prod.yml   # 운영 환경 설정
+│   │   └── db/migration/          # 데이터베이스 마이그레이션
+│   └── build.gradle               # 빌드 설정
+├── docker-compose.yml             # 인프라 서비스 설정
+├── env.example                    # 환경 변수 예시
+├── .env                          # 실제 환경 변수 (gitignore됨)
+├── run-with-env.sh               # 환경 변수 로드 스크립트
+├── .vscode/                      # VSCode 설정
+├── .idea/                        # IntelliJ IDEA 설정
+└── README.md                     # 프로젝트 문서
 ```
 
 ## 🔒 보안 고려사항
 
 1. **환경 변수 사용**: 민감한 정보는 환경 변수로 관리
-2. **JWT 시크릿 키**: 운영 환경에서는 강력한 랜덤 키 사용
+2. **JWT 시크릿 키**: 
+   - 운영 환경에서는 강력한 랜덤 키 사용
+   - Base64 인코딩 필수
+   - 최소 32자 이상 권장
 3. **데이터베이스 비밀번호**: 환경별로 다른 비밀번호 사용
 4. **CORS 설정**: 허용된 도메인만 접근 가능하도록 설정
+5. **.env 파일**: 절대 Git에 커밋하지 않음
 
 ## 🐛 문제 해결
 
 ### 일반적인 문제들
 
-1. **포트 충돌**: `SERVER_PORT` 환경 변수로 포트 변경
-2. **데이터베이스 연결 실패**: Docker Compose 서비스 상태 확인
-3. **Redis 연결 실패**: Redis 컨테이너 상태 확인
+1. **환경 변수가 null로 나오는 경우**:
+   ```bash
+   # .env 파일이 제대로 로드되는지 확인
+   source .env && echo $JWT_SECRET_KEY_DEV
+   
+   # 또는 스크립트 사용
+   ./run-with-env.sh
+   ```
+
+2. **포트 충돌**: `SERVER_PORT` 환경 변수로 포트 변경
+3. **데이터베이스 연결 실패**: Docker Compose 서비스 상태 확인
+4. **Redis 연결 실패**: Redis 컨테이너 상태 확인
 
 ### 로그 확인
 
