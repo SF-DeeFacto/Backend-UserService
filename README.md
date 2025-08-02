@@ -90,11 +90,11 @@ export $(cat .env | grep -v '^#' | xargs) && java -cp user-service/build/classes
 | `DB_PORT` | MySQL 포트 | 3306 | 3306 |
 | `DB_NAME` | 데이터베이스 이름 | deefacto_db | deefacto_db |
 | `DB_USERNAME` | 데이터베이스 사용자명 | deefacto | deefacto |
-| `DB_PASSWORD` | 데이터베이스 비밀번호 | deefacto1234 | your_password |
+| `DB_PASSWORD` | 데이터베이스 비밀번호 | - | your_password |
 | `REDIS_HOST` | Redis 호스트 | localhost | localhost |
 | `REDIS_PORT` | Redis 포트 | 6379 | 6379 |
-| `JWT_SECRET_KEY_DEV` | 개발 환경 JWT 시크릿 키 (Base64)  |
-| `JWT_SECRET_KEY_PROD` | 운영 환경 JWT 시크릿 키 (Base64)  |
+| `JWT_SECRET_KEY_DEV` | 개발 환경 JWT 시크릿 키 (Base64)  | - | your_secret_key_dev |
+| `JWT_SECRET_KEY_PROD` | 운영 환경 JWT 시크릿 키 (Base64)  | - | your_secret_key_prod |
 
 ### 선택적 환경 변수
 
@@ -132,28 +132,39 @@ export $(cat .env | grep -v '^#' | xargs) && java -cp user-service/build/classes
 
 - `POST /auth/register` - 사용자 회원가입
 - `POST /auth/login` - 사용자 로그인 (JWT 토큰 발급)
-- `POST /auth/logout` - 사용자 로그아웃
+
 
 ### 사용자 관련 API (인증 필요)
 
-- `GET /users/profile` - 사용자 프로필 조회
-- `GET /users/me` - 현재 사용자 정보 조회
-- `POST /users/change-password` - 비밀번호 변경
+- `POST /auth/logout` - 사용자 로그아웃
+- `GET /user/info/search?` - 사용자 프로필 조회
+- `POST /user/delete` - 회원 삭제
+- `POST /user/info/password` - 비밀번호 변경
 
 ### 헬스체크 API
 
 - `GET /actuator/health` - 애플리케이션 상태 확인
 
+## 🌐 주요 URL
+
+| 유형     | URL                              |
+|----------|-----------------------------------|
+| Swagger  | http://localhost:8081/swagger-ui.html |
+| Actuator | http://localhost:8081/actuator/health |
+| Grafana  | (운영 환경) 환경 변수 참조        |
+
 ## 🔧 기술 스택
 
 - **Framework**: Spring Boot 3.5.4
-- **Language**: Java 17
+- **Language**: Java 17 (Amazon Corretto)
 - **Database**: MySQL 8.0
 - **Cache**: Redis 7
 - **Security**: Spring Security + JWT
 - **Build Tool**: Gradle
 - **Container**: Docker & Docker Compose
 - **Environment**: .env 파일 지원 (IDE 자동 로드)
+- **MSA**: 마이크로서비스 아키텍처
+- **CI/CD**: Jenkins + Docker + ArgoCD (예정)
 
 ## 📁 프로젝트 구조
 
@@ -198,6 +209,8 @@ Backend-UserService/
 3. **데이터베이스 비밀번호**: 환경별로 다른 비밀번호 사용
 4. **CORS 설정**: 허용된 도메인만 접근 가능하도록 설정
 5. **.env 파일**: 절대 Git에 커밋하지 않음
+6. **인증서 파일**: `src/main/resources/certs/` 등 민감 파일은 **git에 커밋 금지**
+7. **환경 변수/비밀키**: 운영 서버 또는 CI/CD에서 안전하게 주입
 
 ## 🐛 문제 해결
 
@@ -242,13 +255,62 @@ docker-compose logs redis
 - **운영 환경**: `application-prod.yml` 사용
 - **환경 변수**: `.env` 파일 또는 시스템 환경 변수 사용
 
-## 🤝 기여하기
+### 📁 폴더 구조 및 설정 규칙
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- 모든 설정은 `application.yml` 파일 사용 (`.properties ❌ 금지`)
+- 새로운 설정 클래스는 `XXConfig.java` 네이밍 사용  
+  예: `MqttConfig.java`, `KafkaConfig.java`
+
+### ⚙️ 환경 변수 및 민감 정보 관리
+
+- 모든 민감 정보는 환경 변수 또는 `.env` 파일로 관리
+- 주요 환경 변수 예시:
+  - `AWS_IAM_ACCESS_KEY`, `AWS_IAM_SECRET_KEY`
+  - `GRAFANA_URL_OUTER`
+  - `spring.datasource.*`, `spring.kafka.*` 등
+
+
+
+## 🧪 테스트
+
+- 테스트 코드는 `src/test/java` 디렉터리에 작성
+- JUnit 5 기반 유닛/통합 테스트 구성
+
+## 🧑‍💻 커밋 메시지 컨벤션 (`|` 구분자 사용)
+
+```bash
+[type] | sprint | JIRA-KEY | 기능 요약 | 담당자
+```
+
+- **type**: feat, fix, docs, config, refactor, test, chore, style 등
+- **sprint**: sprint0, sprint1, ...
+- **JIRA-KEY**: JIRA 이슈 번호 또는 없음
+- **기능 요약**: 핵심 변경 내용
+- **담당자**: 실명 또는 닉네임
+
+### 📌 예시
+
+```
+feat    | sprint0 | 없음     | 센서 등록 API 구현         | KIM
+feat    | sprint0 | IOT-123  | 센서 등록 API 구현         | KIM
+fix     | sprint1 | IOT-210  | MQTT 수신 실패 예외 처리   | RAFA
+config  | sprint0 | IOT-001  | H2 DB 설정 추가            | MO
+docs    | sprint1 | IOT-999  | README 초안 작성           | JONE
+```
+
+### ✅ 추천 커밋 예시 (복붙용)
+
+```bash
+git commit -m "feat    | sprint1 | IOT-112 | 작업자 센서 조회 API 추가 | KIM"
+git commit -m "fix     | sprint0 | IOT-009 | H2 연결 오류 수정         | RAFA"
+git commit -m "config  | sprint0 | IOT-000 | Spring Boot 3.4.4 적용    | MO"
+git commit -m "chore   | sprint1 | IOT-999 | 커밋 컨벤션 README 정리   | JONE"
+```
+
+## 🚧 기타 운영 참고
+
+- Jenkins 및 ArgoCD 연동은 `Jenkinsfile` 참조
+- 신규 설정 파일 추가 시 반드시 `XXConfig.java` 네이밍 유지
 
 ## 📄 라이선스
 
