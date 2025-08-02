@@ -3,10 +3,12 @@ package com.deefacto.user_service.controller;
 import com.deefacto.user_service.domain.dto.UserLoginDto;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.deefacto.user_service.common.dto.ApiResponseDto;
+import com.deefacto.user_service.common.exception.BadParameter;
 import com.deefacto.user_service.domain.dto.UserRegisterDto;
 import com.deefacto.user_service.secret.jwt.dto.TokenDto;
 import com.deefacto.user_service.service.UserService;
@@ -54,7 +56,16 @@ public class UserAuthController {
      * @return 등록된 사용자의 사원번호
      */
     @PostMapping("/register")
-    public ApiResponseDto<Map<String, String>> registerUser(@RequestBody @Valid UserRegisterDto userRegisterDto) {
+    public ApiResponseDto<Map<String, String>> registerUser(
+        @RequestBody @Valid UserRegisterDto userRegisterDto,
+        @RequestHeader(value = "X-Role", required = false) String role
+    ) {
+        if (role == null || role.isEmpty()) {
+            throw new BadParameter("X-Role header is required");
+        }
+        if (!role.equals("ADMIN")) {
+            throw new BadParameter("You are not authorized to register user");
+        }
 
         // UserService를 통해 사용자 등록 처리
         userService.registerUser(userRegisterDto);
