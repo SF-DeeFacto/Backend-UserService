@@ -1,0 +1,145 @@
+# ========================================
+# User Service 개발 환경 Docker Compose 설정
+# ========================================
+# 
+# 이 파일은 User Service 개발에 필요한 인프라 서비스들을 정의합니다.
+# MySQL과 Redis를 Docker 컨테이너로 실행하여 개발 환경을 구성합니다.
+# 
+# 환경 변수 사용:
+# - .env 파일에서 환경 변수를 읽어와서 사용
+# - 환경 변수가 없으면 기본값 사용
+# 
+# 실행 방법:
+#   docker-compose up -d    # 백그라운드에서 실행
+#   docker-compose down     # 컨테이너 중지 및 삭제
+#   docker-compose logs     # 로그 확인
+
+# Docker Compose 버전
+version: '3.8'
+
+# 서비스 정의
+services:
+  # ========================================
+  # User Service 애플리케이션
+  # ========================================
+  user-service:
+    # 빌드 컨텍스트 (현재 디렉토리의 user-service 폴더)
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    # 컨테이너 이름
+    container_name: deefacto-user-service
+    # 포트 매핑 (호스트:컨테이너)
+    ports:
+      - "${SERVER_PORT:-8081}:8081"
+    # 환경 변수 파일 설정 (.env 파일에서 환경 변수 로드)
+    env_file:
+      - .env
+    # 환경 변수 설정
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SERVER_PORT: ${SERVER_PORT:-8081}
+      DB_HOST: mysql
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-deefacto_db}
+      DB_USERNAME: ${DB_USERNAME:-deefacto}
+      DB_PASSWORD: ${DB_PASSWORD:-deefacto1234}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      JWT_SECRET_KEY_DEV: ${JWT_SECRET_KEY_DEV}
+      JWT_SECRET_KEY_PROD: ${JWT_SECRET_KEY_PROD}
+      JWT_REFRESH_TOKEN_EXPIRES_IN: ${JWT_REFRESH_TOKEN_EXPIRES_IN:-86400}
+      JWT_ACCESS_TOKEN_EXPIRES_IN: ${JWT_ACCESS_TOKEN_EXPIRES_IN:-900}
+      LOGGING_LEVEL_ROOT: ${LOGGING_LEVEL_ROOT:-info}
+      LOGGING_LEVEL_USER_SERVICE: ${LOGGING_LEVEL_USER_SERVICE:-info}
+      FLYWAY_ENABLED: ${FLYWAY_ENABLED:-true}
+    # 서비스 의존성 설정 (MySQL과 Redis가 준비된 후 시작)
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # 컨테이너 재시작 정책
+    restart: always
+    # 네트워크 설정
+    networks:
+      - deefacto-network
+
+  # ========================================
+  # MySQL 데이터베이스 서비스
+  # ========================================
+  mysql:
+    # MySQL 8.0 이미지 사용
+    image: mysql:8.0
+    # 컨테이너 이름
+    container_name: deefacto-mysql
+    # 환경 변수 설정 (.env 파일에서 읽어오거나 기본값 사용)
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root1234}      # MySQL root 사용자 비밀번호
+      MYSQL_DATABASE: ${DB_NAME:-deefacto_db}                 # 생성할 데이터베이스 이름
+      MYSQL_USER: ${DB_USERNAME:-deefacto}                    # 생성할 사용자 이름
+      MYSQL_PASSWORD: ${DB_PASSWORD:-deefacto1234}            # 생성할 사용자 비밀번호
+    # 포트 매핑 (호스트:컨테이너)
+    ports:
+      - "${DB_PORT:-3306}:3306"                               # MySQL 기본 포트
+    # 데이터 영속성을 위한 볼륨 마운트
+    volumes:
+      - mysql_data:/var/lib/mysql                             # MySQL 데이터 디렉토리
+    # 컨테이너 재시작 정책
+    restart: always                                           # 항상 재시작
+    # 네트워크 설정
+    networks:
+      - deefacto-network
+    # 헬스체크 설정 (컨테이너 상태 확인)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]  # MySQL 연결 테스트
+      interval: 10s                                           # 10초마다 체크
+      timeout: 5s                                             # 5초 타임아웃
+      retries: 5                                              # 5번 재시도
+
+  # ========================================
+  # Redis 캐시 서비스
+  # ========================================
+  redis:
+    # Redis 7 Alpine 이미지 사용 (가벼운 버전)
+    image: redis:7-alpine
+    # 컨테이너 이름
+    container_name: deefacto-redis
+    # 포트 매핑 (호스트:컨테이너)
+    ports:
+      - "${REDIS_PORT:-6379}:6379"                            # Redis 기본 포트
+    # 데이터 영속성을 위한 볼륨 마운트
+    volumes:
+      - redis_data:/data                                      # Redis 데이터 디렉토리
+    # 컨테이너 재시작 정책
+    restart: always                                           # 항상 재시작
+    # 네트워크 설정
+    networks:
+      - deefacto-network
+    # Redis 서버 실행 명령어
+    command: redis-server --appendonly yes                    # AOF (Append Only File) 활성화로 데이터 영속성 보장
+    # 헬스체크 설정 (컨테이너 상태 확인)
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]                      # Redis 연결 테스트
+      interval: 10s                                           # 10초마다 체크
+      timeout: 5s                                             # 5초 타임아웃
+      retries: 5                                              # 5번 재시도
+
+# ========================================
+# Docker 볼륨 정의
+# ========================================
+# 
+# 데이터 영속성을 위한 볼륨들을 정의합니다.
+# 컨테이너가 삭제되어도 데이터는 보존됩니다.
+volumes:
+  mysql_data:    # MySQL 데이터 저장용 볼륨
+  redis_data:    # Redis 데이터 저장용 볼륨
+
+# ========================================
+# Docker 네트워크 정의
+# ========================================
+# 
+# 서비스 간 통신을 위한 네트워크를 정의합니다.
+networks:
+  deefacto-network:
+    driver: bridge
