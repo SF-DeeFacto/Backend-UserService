@@ -109,6 +109,10 @@ dependencies {
 
 	// Redis 의존성 중복 제거 (위에서 이미 선언됨)
 	// implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	implementation 'org.springframework.kafka:spring-kafka'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
+
 }
 
 // 테스트 설정
