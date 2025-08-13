@@ -5,6 +5,7 @@ import com.deefacto.user_service.remote.dto.UserMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.stereotype.Component;
 import java.util.List;
@@ -21,7 +22,7 @@ public class UserRequestConsumer {
                     // Header에 들어가는 값 (이벤트 메시지 위치)
                     + ":com.deefacto.user_service.remote.dto.UserMessage$UserRequestMessage"
     })
-    public void consumeUserRequest(UserMessage.UserRequestMessage request) {
+    public void consumeUserRequest(UserMessage.UserRequestMessage request, Acknowledgment ack) {
         // zoneId, shift 기반으로 사용자 조회 (DB 쿼리 또는 캐시)
         List<Long> userIds = queryUsersByZoneAndShift(request.getZoneId(), request.getShift());
 
@@ -31,6 +32,7 @@ public class UserRequestConsumer {
         response.setUserIds(userIds);
 
         kafkaTemplate.send("user.response", response);
+        ack.acknowledge();
     }
 
     private List<Long> queryUsersByZoneAndShift(String zoneId, String shift) {
