@@ -24,7 +24,8 @@ public class UserRequestConsumer {
     })
     public void consumeUserRequest(UserMessage.UserRequestMessage request, Acknowledgment ack) {
         // zoneId, shift 기반으로 사용자 조회 (DB 쿼리 또는 캐시)
-        List<Long> userIds = queryUsersByZoneAndShift(request.getZoneId(), request.getShift());
+        String zone = String.valueOf((request.getZoneId().charAt(0)));
+        List<Long> userIds = queryUsersByZoneAndShift(zone, request.getShift());
 
         // 조회된 사용자 리스트를 응답 메시지에 담아 보냄
         UserMessage.UserResponseMessage response = new UserMessage.UserResponseMessage();
