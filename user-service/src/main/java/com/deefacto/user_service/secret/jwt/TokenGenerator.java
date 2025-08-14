@@ -3,6 +3,8 @@ package com.deefacto.user_service.secret.jwt;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
+import com.deefacto.user_service.domain.Entitiy.User;
+import com.deefacto.user_service.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -37,6 +39,9 @@ public class TokenGenerator {
     
     // JWT 서명에 사용할 시크릿 키 (지연 초기화)
     private volatile SecretKey secretKey;
+
+
+    private final UserRepository userRepository;
 
     /**
      * JWT 서명에 사용할 시크릿 키를 지연 초기화로 생성
@@ -84,16 +89,23 @@ public class TokenGenerator {
      * @param isRefreshToken 리프레시 토큰 여부
      * @return 생성된 JWT 토큰과 만료 시간 정보
      */
+    // Refresh Token의 경우, userId만 있어도 되지만, 같은 메소드 사용으로 일단 동일한 데이터 저장
     public TokenDto.JwtToken generateJwtToken(String employeeId, boolean isRefreshToken) {
         // 토큰 타입에 따른 만료 시간 계산
         int expriresIn = getExpriresIn(isRefreshToken);
         String tokenType = isRefreshToken ? "refresh" : "access";
+
+        // employeeId 기반 User 정보 조회 (DB)
+        User user = userRepository.findByEmployeeId(employeeId);
         
-        // JWT 토큰 생성
+        // JWT 토큰 생성 (userId, shift, role 정보 추가)
         String token = Jwts.builder()
             .issuer("deefacto")                    // 토큰 발급자
             .setSubject(employeeId)                // 토큰 주체 (사용자 ID)
             .claim("EmployeeId", employeeId)       // 사용자 사원번호 클레임
+                .claim("UserId", user.getId())
+                .claim("Shift", user.getShift())
+                .claim("Role", user.getRole())
             .claim("type", tokenType)              // 토큰 타입 클레임 (access/refresh)
             .issuedAt(new Date())                  // 토큰 발급 시간
             .expiration(new Date(System.currentTimeMillis() + expriresIn * 1000L))  // 토큰 만료 시간
@@ -210,7 +222,7 @@ public class TokenGenerator {
         
         // 리프레시 토큰에서 사용자 ID 추출
         String employeeId = getEmployeeIdFromToken(refreshToken);
-        
+
         // 새로운 액세스 토큰 생성
         return generateAccessToken(employeeId);
     }

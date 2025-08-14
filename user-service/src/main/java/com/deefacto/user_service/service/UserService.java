@@ -157,6 +157,7 @@ public class UserService {
         log.info("로그인 성공: 사원번호 {}", loginDto.getEmployeeId());
         
         // 로그인 성공 시 액세스 토큰과 리프레시 토큰 발급 (JWT 생성)
+        // JWT 내부에 employeeId 뿐 아니라 userId, role, shift 정보 포함 필요
         TokenDto.AccessRefreshToken token = tokenGenerator.generateAccessRefreshToken(loginDto.getEmployeeId());
         
         // Redis에 사용자별 토큰 저장 (후입/선입 차단 정책 적용)
