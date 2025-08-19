@@ -83,10 +83,11 @@ public class UserController {
         @RequestParam(value = "page", defaultValue = "0") Integer page,
         @RequestParam(value = "size", defaultValue = "10") Integer size,
         @RequestParam(value = "name", required = false) String name,
-        @RequestParam(value = "email", required = false) String email
+        @RequestParam(value = "email", required = false) String email,
+        @RequestParam(value = "employeeId", required = false) String employeeId
     ) {
         // 검색 조건 DTO 생성 (employeeId는 null로 설정하여 전체 조회)
-        UserSearchDto searchDto = new UserSearchDto(page, size, name, email, null);
+        UserSearchDto searchDto = new UserSearchDto(page, size, name, email, employeeId);
         
         // 사용자 검색 실행
         Page<UserInfoResponseDto> result = userService.searchUsers(searchDto);
