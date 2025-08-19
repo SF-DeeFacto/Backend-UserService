@@ -15,6 +15,8 @@ server:
   port: ${SERVER_PORT:8081}
 
 spring:
+  kafka:
+    bootstrap-servers: localhost:9092
   # 데이터베이스 연결 설정 (MySQL)
   datasource:
     # MySQL 데이터베이스 연결 URL (환경 변수 사용)

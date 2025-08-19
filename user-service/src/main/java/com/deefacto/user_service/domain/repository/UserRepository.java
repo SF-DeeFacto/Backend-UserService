@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 import com.deefacto.user_service.domain.Entitiy.User;
 
+import java.util.List;
+
 public interface UserRepository extends JpaRepository<User, Long> {
     User findByEmployeeId(String employeeId);
     
@@ -30,4 +32,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
         @Param("employeeId") String employeeId,
         Pageable pageable
     );
+
+    @Query("SELECT u.id FROM User u " +
+            "WHERE (u.role LIKE CONCAT(:role, ',%') " +
+            "OR u.role LIKE CONCAT('%,', :role, ',%') " +
+            "OR u.role LIKE CONCAT('%,', :role) " +
+            "OR u.role = :role) " +
+            "AND u.shift = :shift " +
+            "AND u.isActive = true")
+    List<Long> findUserIdsByRoleAndShift(@Param("role") String role, @Param("shift") String shift);
+
+
 }

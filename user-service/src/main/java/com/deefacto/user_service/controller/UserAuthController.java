@@ -67,9 +67,9 @@ public class UserAuthController {
         if (role == null || role.isEmpty()) {
             throw new BadParameter("X-Role header is required");
         }
-        if (!role.equals("ADMIN")) {
-            throw new BadParameter("You are not authorized to register user");
-        }
+//        if (!role.equals("ADMIN")) {
+//            throw new BadParameter("You are not authorized to register user");
+//        }
 
         // UserService를 통해 사용자 등록 처리
         userService.registerUser(userRegisterDto, adminEmployeeId);
