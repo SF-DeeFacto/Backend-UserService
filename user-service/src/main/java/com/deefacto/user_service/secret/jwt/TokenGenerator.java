@@ -5,6 +5,7 @@ import java.util.Date;
 
 import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.repository.UserRepository;
+import com.deefacto.user_service.remote.service.UserCacheService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -42,6 +43,8 @@ public class TokenGenerator {
 
 
     private final UserRepository userRepository;
+
+    private final UserCacheService userCacheService;
 
     /**
      * JWT 서명에 사용할 시크릿 키를 지연 초기화로 생성
@@ -103,9 +106,9 @@ public class TokenGenerator {
             .issuer("deefacto")                    // 토큰 발급자
             .setSubject(employeeId)                // 토큰 주체 (사용자 ID)
             .claim("EmployeeId", employeeId)       // 사용자 사원번호 클레임
-                .claim("UserId", user.getId())
-                .claim("Shift", user.getShift())
-                .claim("Role", user.getRole())
+//                .claim("UserId", user.getId())
+//                .claim("Shift", user.getShift())
+//                .claim("Role", user.getRole())
             .claim("type", tokenType)              // 토큰 타입 클레임 (access/refresh)
             .issuedAt(new Date())                  // 토큰 발급 시간
             .expiration(new Date(System.currentTimeMillis() + expriresIn * 1000L))  // 토큰 만료 시간
@@ -222,6 +225,9 @@ public class TokenGenerator {
         
         // 리프레시 토큰에서 사용자 ID 추출
         String employeeId = getEmployeeIdFromToken(refreshToken);
+
+        // 리프레시 토큰 연장 시 user 정보도 연장
+        userCacheService.refreshUserCacheTTL(employeeId,60);
 
         // 새로운 액세스 토큰 생성
         return generateAccessToken(employeeId);

@@ -2,9 +2,11 @@ package com.deefacto.user_service.service;
 
 import com.deefacto.user_service.common.exception.BadParameter;
 import com.deefacto.user_service.common.exception.NotFound;
-import com.deefacto.user_service.domain.dto.UserLoginDto;
+import com.deefacto.user_service.domain.dto.*;
+import com.deefacto.user_service.remote.service.UserCacheService;
 import com.deefacto.user_service.secret.jwt.TokenGenerator;
 import com.deefacto.user_service.secret.jwt.dto.TokenDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import com.deefacto.user_service.config.SecurityConfig.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,12 +22,7 @@ import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import com.deefacto.user_service.domain.dto.UserRegisterDto;
 import com.deefacto.user_service.domain.Entitiy.User;
-import com.deefacto.user_service.domain.dto.UserChangePasswordDto;
-import com.deefacto.user_service.domain.dto.UserDeleteDto;
-import com.deefacto.user_service.domain.dto.UserSearchDto;
-import com.deefacto.user_service.domain.dto.UserInfoResponseDto;
 
 /**
  * 사용자 관련 비즈니스 로직을 처리하는 서비스 클래스
@@ -55,6 +52,15 @@ public class UserService {
     
     // 로그아웃 토큰 관리를 위한 Redis 템플릿
     private final RedisTemplate<String, String> redisTemplate;
+
+    // Redis 유저 정보 사용을 위한 서비스
+    private final UserCacheService userCacheService;
+
+    // Redis 사용을 위한 ObjectMapper
+    private final ObjectMapper objectMapper;
+
+    // Redis에 저장되는 유저정보 TTL
+    private final long USER_CACHE_TTL_MIN = 60;
 
     // API Gateway에서 이미 토큰을 검증하고 X-Employee-Id 헤더로 전달하므로
     // extractToken 메서드는 더 이상 필요하지 않음
@@ -162,6 +168,9 @@ public class UserService {
         
         // Redis에 사용자별 토큰 저장 (후입/선입 차단 정책 적용)
         saveUserTokenToRedis(loginDto.getEmployeeId(), token);
+
+        // Redis에 필요 유저 정보 저장
+        userCacheService.saveUser(user, USER_CACHE_TTL_MIN);
         
         return token;
     }
