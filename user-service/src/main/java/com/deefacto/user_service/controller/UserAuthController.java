@@ -1,6 +1,8 @@
 package com.deefacto.user_service.controller;
 
+import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.dto.UserLoginDto;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -32,6 +34,7 @@ import java.util.Map;
  * 이 컨트롤러의 엔드포인트들은 인증이 필요하지 않은 공개 API입니다.
  * API Gateway에서 /auth/** 경로는 인증 없이 접근 가능하도록 설정되어 있습니다.
  */
+@Slf4j
 @RestController
 @RequestMapping("/auth")
 // @RequestMapping("/")
@@ -58,22 +61,21 @@ public class UserAuthController {
     @PostMapping("/register")
     public ApiResponseDto<Map<String, String>> registerUser(
         @RequestBody @Valid UserRegisterDto userRegisterDto,
-        @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId,
-        @RequestHeader(value = "X-Role", required = false) String role
+        @RequestHeader(value = "X-User-Id", required = false) Long userId,
+        @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId
     ) {
-        if (adminEmployeeId == null || adminEmployeeId.isEmpty()) {
-            throw new BadParameter("X-Employee-Id header is required");
+        if (userId == null || adminEmployeeId == null || adminEmployeeId.isEmpty()) {
+            log.warn("[회원 가입]: 잘못된 파라미터 userId: {}, employeeId: {}", userId, adminEmployeeId);
+            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
         }
-        if (role == null || role.isEmpty()) {
-            throw new BadParameter("X-Role header is required");
+        User user = userService.searchUserById(userId);
+        if (!user.getRole().equals("ROOT")) {
+            throw new BadParameter("You are not authorized to register user");
         }
-//        if (!role.equals("ADMIN")) {
-//            throw new BadParameter("You are not authorized to register user");
-//        }
 
         // UserService를 통해 사용자 등록 처리
         userService.registerUser(userRegisterDto, adminEmployeeId);
-        
+
         // 응답 데이터 구성
         data.put("employeeId", userRegisterDto.getEmployeeId());
 

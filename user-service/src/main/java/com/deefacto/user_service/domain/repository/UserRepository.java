@@ -34,13 +34,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     );
 
     @Query("SELECT u.id FROM User u " +
-            "WHERE (u.role LIKE CONCAT(:role, ',%') " +
-            "OR u.role LIKE CONCAT('%,', :role, ',%') " +
-            "OR u.role LIKE CONCAT('%,', :role) " +
-            "OR u.role = :role) " +
+            "WHERE (u.scope LIKE CONCAT(:scope, ',%') " +
+            "OR u.scope LIKE CONCAT('%,', :scope, ',%') " +
+            "OR u.scope LIKE CONCAT('%,', :scope) " +
+            "OR u.scope = :scope) " +
             "AND u.shift = :shift " +
             "AND u.isActive = true")
-    List<Long> findUserIdsByRoleAndShift(@Param("role") String role, @Param("shift") String shift);
+    List<Long> findUserIdsByScopeAndShift(@Param("scope") String scope, @Param("shift") String shift);
 
 
 }

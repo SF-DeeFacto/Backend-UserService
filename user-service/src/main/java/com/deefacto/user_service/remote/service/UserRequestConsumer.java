@@ -37,7 +37,7 @@ public class UserRequestConsumer {
     }
 
     private List<Long> queryUsersByZoneAndShift(String zoneId, String shift) {
-        return userRepository.findUserIdsByRoleAndShift(zoneId, shift);
+        return userRepository.findUserIdsByScopeAndShift(zoneId, shift);
     }
 }
 

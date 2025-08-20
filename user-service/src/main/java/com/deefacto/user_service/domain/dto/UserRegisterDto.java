@@ -49,6 +49,9 @@ public class UserRegisterDto {
 
     private String role;
 
+    @NotBlank(message = "scope is compulsory")
+    private String scope;
+
     private String shift;
 
     private LocalDateTime createdAt;
@@ -72,6 +75,7 @@ public class UserRegisterDto {
         user.setDepartment(this.department);
         user.setPosition(this.position);
         user.setRole(this.role);
+        user.setScope(this.scope);
         user.setShift(this.shift);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());

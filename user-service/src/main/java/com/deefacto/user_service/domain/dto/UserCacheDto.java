@@ -17,6 +17,8 @@ public class UserCacheDto {
     private String name;
     // 권한
     private String role;
+    // 구역 범위
+    private String scope;
     // 근무시간
     private String shift;
 }

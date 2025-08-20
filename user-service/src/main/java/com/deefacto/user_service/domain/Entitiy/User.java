@@ -57,7 +57,11 @@ public class User {
 
     @Column(name = "role", nullable = false)
     @Getter @Setter
-    private String role; // 권한
+    private String role; // 권한 (ROOT, ADMIN, USER)
+
+    @Column(name = "scope", nullable = false)
+    @Getter @Setter
+    private String scope; // 구역 범위 (a,b,c)
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
@@ -75,7 +79,7 @@ public class User {
 
     @Column(name = "shift")
     @Getter @Setter
-    private String shift; // 근무 시간
+    private String shift; // 근무 시간 (DAY, NIGHT)
 
     @Column(name = "created_pr", nullable = false)
     @Getter @Setter

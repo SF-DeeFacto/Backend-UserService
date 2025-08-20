@@ -1,4 +1,4 @@
-package com.deefacto.user_service.remote.service;
+package com.deefacto.user_service.service;
 
 import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.dto.UserCacheDto;
@@ -17,13 +17,14 @@ public class UserCacheService {
     private final ObjectMapper objectMapper;
 
     // 필요한 유저 정보만 담아 redis에 저장
-    public void saveUser(User user, long ttlMinutes) {
+    public void saveOrUpdateUser(User user, long ttlMinutes) {
         try {
             UserCacheDto cacheDto = new UserCacheDto(
                     user.getId(),
                     user.getEmployeeId(),
                     user.getName(),
                     user.getRole(),
+                    user.getScope(),
                     user.getShift()
             );
 
@@ -32,15 +33,6 @@ public class UserCacheService {
             redisTemplate.opsForValue().set(key, value, ttlMinutes, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    // refreshToken 발급 시 TTL 연장
-    public void refreshUserCacheTTL(String employeeId, long ttlMinutes) {
-        String key = "user:" + employeeId;
-        Boolean exists = redisTemplate.hasKey(key);
-        if(Boolean.TRUE.equals(exists)) {
-            redisTemplate.expire(key, ttlMinutes, TimeUnit.MINUTES);
         }
     }
 }
