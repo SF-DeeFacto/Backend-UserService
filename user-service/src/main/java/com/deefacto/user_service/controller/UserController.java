@@ -10,6 +10,7 @@ import com.deefacto.user_service.domain.dto.UserInfoResponseDto;
 import com.deefacto.user_service.domain.repository.UserRepository;
 import com.deefacto.user_service.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -27,6 +28,7 @@ import org.springframework.data.domain.Page;
  * - 현재 사용자 정보 조회
  * - 비밀번호 변경 (예정)
  */
+@Slf4j
 @RestController
 @RequestMapping("/user")
 @RequiredArgsConstructor
@@ -48,19 +50,17 @@ public class UserController {
      */
     @GetMapping("/info/profile")
     public ApiResponseDto<UserInfoResponseDto> getProfile(
-        @RequestHeader(value = "X-Employee-Id", required = false) String employeeId,
-        @RequestHeader(value = "X-Role", required = false) String role
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-Employee-Id", required = false) String employeeId
     ) {
         // API Gateway에서 전달받은 헤더 검증
-        if (employeeId == null || employeeId.isEmpty()) {
-            throw new BadParameter("X-Employee-Id header is required");
-        }
-        if (role == null || role.isEmpty()) {
-            throw new BadParameter("X-Role header is required");
+        if (userId == null || employeeId == null || employeeId.isEmpty()) {
+            log.warn("[회원 가입]: 잘못된 파라미터 userId: {}, employeeId: {}", userId, employeeId);
+            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
         }
         
         // API Gateway에서 이미 파싱된 정보를 바로 사용하여 데이터베이스 조회
-        User user = userRepository.findByEmployeeId(employeeId);
+        User user = userService.searchUserById(userId);
         
         // UserInfoResponseDto로 변환
         UserInfoResponseDto profile = UserInfoResponseDto.from(user);
@@ -98,19 +98,19 @@ public class UserController {
     // 사용자 정보 변경
     @PostMapping("info/change")
     public ApiResponseDto<String> changeUserInfo(
-        @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId,
-        @RequestHeader(value = "X-Role", required = false) String role,
-        @RequestBody @Valid UserInfoResponseDto userInfoResponseDto
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId,
+            @RequestBody @Valid UserInfoResponseDto userInfoResponseDto
     ) {
-        if (adminEmployeeId == null || adminEmployeeId.isEmpty()) {
-            throw new BadParameter("X-Employee-Id header is required");
+        if (userId == null || adminEmployeeId == null || adminEmployeeId.isEmpty()) {
+            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
         }
-        if (role == null || role.isEmpty()) {
-            throw new BadParameter("X-Role header is required");
+
+        User user = userService.searchUserById(userId);
+        if (!user.getRole().equals("ROOT")) {
+            throw new BadParameter("You are not authorized to register user");
         }
-        if (!role.equals("ADMIN")) {
-            throw new BadParameter("You are not authorized to change user info");
-        }
+
         userService.changeUserInfo(userInfoResponseDto, adminEmployeeId);
         return ApiResponseDto.createOk(null, "사용자 정보 변경 성공");
     }
@@ -126,18 +126,17 @@ public class UserController {
      */
     @PostMapping("/info/password")
     public ApiResponseDto<String> changePassword(
-        @RequestHeader(value = "X-Employee-Id", required = false) String employeeId,
-        @RequestHeader(value = "X-Role", required = false) String role,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-Employee-Id", required = false) String employeeId,
         @RequestBody @Valid UserChangePasswordDto userChangePasswordDto
     ) {
         // API Gateway에서 전달받은 헤더 검증
-        if (employeeId == null || employeeId.isEmpty()) {
-            throw new BadParameter("X-Employee-Id header is required");
+        if (userId == null || employeeId == null || employeeId.isEmpty()) {
+            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
         }
         
-        // 본인 또는 ADMIN만 비밀번호 변경 가능
-        if (!employeeId.equals(userChangePasswordDto.getEmployeeId()) && 
-            !"ADMIN".equals(role)) {
+        // 본인만 비밀번호 변경 가능
+        if (!employeeId.equals(userChangePasswordDto.getEmployeeId())) {
             throw new BadParameter("You can only change your own password or need ADMIN role");
         }
         
@@ -149,18 +148,21 @@ public class UserController {
     // 사용자 삭제
     @PostMapping("/delete")
     public ApiResponseDto<String> deleteUser(
-        @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId,
-        @RequestHeader(value = "X-Role", required = false) String role,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId,
         @RequestBody @Valid UserDeleteDto userDeleteDto
     ) {
-        if (adminEmployeeId == null || adminEmployeeId.isEmpty()) {
-            throw new BadParameter("X-Employee-Id header is required");
+        if (userId == null || adminEmployeeId == null || adminEmployeeId.isEmpty()) {
+            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
         }
-        if (role == null || role.isEmpty()) {
-            throw new BadParameter("X-Role header is required");
+
+        User user = userService.searchUserById(userId);
+        if (!user.getRole().equals("ROOT")) {
+            throw new BadParameter("You are not authorized to register user");
         }
-        if (!role.equals("ADMIN")) {
-            throw new BadParameter("You are not authorized to delete user");
+
+        if(userDeleteDto.getEmployeeId().equals(adminEmployeeId)) {
+            throw new BadParameter("You cannot delete yourself");
         }
         userService.deleteUser(userDeleteDto);
         return ApiResponseDto.createOk(null, "사용자 삭제 성공");

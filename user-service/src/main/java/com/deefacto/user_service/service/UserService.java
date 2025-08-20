@@ -3,7 +3,6 @@ package com.deefacto.user_service.service;
 import com.deefacto.user_service.common.exception.BadParameter;
 import com.deefacto.user_service.common.exception.NotFound;
 import com.deefacto.user_service.domain.dto.*;
-import com.deefacto.user_service.remote.service.UserCacheService;
 import com.deefacto.user_service.secret.jwt.TokenGenerator;
 import com.deefacto.user_service.secret.jwt.dto.TokenDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,8 +58,8 @@ public class UserService {
     // Redis 사용을 위한 ObjectMapper
     private final ObjectMapper objectMapper;
 
-    // Redis에 저장되는 유저정보 TTL
-    private final long USER_CACHE_TTL_MIN = 60;
+    // Redis에 저장되는 유저정보 TTL (Refresh Token 시간과 통일)
+    private final long USER_CACHE_TTL_MIN = 20;
 
     // API Gateway에서 이미 토큰을 검증하고 X-Employee-Id 헤더로 전달하므로
     // extractToken 메서드는 더 이상 필요하지 않음
@@ -104,9 +103,9 @@ public class UserService {
         // 활성 여부 설정 (새로 등록된 사용자는 기본적으로 활성 상태)
         user.setActive(true);
 
-        // 기본 근무시간 설정 (shift가 null인 경우 기본값 "A" 설정)
+        // 기본 근무시간 설정 (shift가 null인 경우 기본값 "DAY" 설정)
         if (user.getShift() == null) {
-            user.setShift("A");
+            user.setShift("DAY");
         }
 
         // 등록자 및 수정자 정보 기록 (감사 로그용)
@@ -152,9 +151,20 @@ public class UserService {
         
         // BCrypt를 사용하여 비밀번호 검증
         // encode()된 비밀번호와 원본 비밀번호를 비교 (단방향 해시 검증)
-        if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
-            log.warn("비밀번호 불일치: 사원번호 {}", loginDto.getEmployeeId());
-            throw new BadParameter("User/Password is incorrect");
+
+        // ROOT 계정은 평문도 가능 (초기)
+        if(user.getRole().equals("ROOT")) {
+           if(loginDto.getPassword().equals(user.getPassword()) || passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
+               log.info("ROOT 사용자 로그인");
+           } else {
+               log.warn("Root 계정 비밀번호 불일치: 사원번호 {}", loginDto.getEmployeeId());
+               throw new BadParameter("User/Password is incorrect");
+           }
+        } else {
+            if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
+                log.warn("비밀번호 불일치: 사원번호 {}", loginDto.getEmployeeId());
+                throw new BadParameter("User/Password is incorrect");
+            }
         }
 
         // 중복 로그인 확인 (후입/선입 차단 정책 - Redis 기반)
@@ -163,14 +173,13 @@ public class UserService {
         log.info("로그인 성공: 사원번호 {}", loginDto.getEmployeeId());
         
         // 로그인 성공 시 액세스 토큰과 리프레시 토큰 발급 (JWT 생성)
-        // JWT 내부에 employeeId 뿐 아니라 userId, role, shift 정보 포함 필요
         TokenDto.AccessRefreshToken token = tokenGenerator.generateAccessRefreshToken(loginDto.getEmployeeId());
         
         // Redis에 사용자별 토큰 저장 (후입/선입 차단 정책 적용)
         saveUserTokenToRedis(loginDto.getEmployeeId(), token);
 
         // Redis에 필요 유저 정보 저장
-        userCacheService.saveUser(user, USER_CACHE_TTL_MIN);
+        userCacheService.saveOrUpdateUser(user, USER_CACHE_TTL_MIN);
         
         return token;
     }
@@ -283,8 +292,11 @@ public class UserService {
             throw new BadParameter("Current password is incorrect");
         }
         // 2. 새 비밀번호 유효성 검증
-        if (userChangePasswordDto.getNewPassword().length() < 8) {
-            throw new BadParameter("New password must be at least 8 characters long");
+        if (userChangePasswordDto.getNewPassword().length() < 4) {
+            throw new BadParameter("New password must be at least 4 characters long");
+        }
+        if (userChangePasswordDto.getNewPassword().length() > 20) {
+            throw new BadParameter("New password must be at least 20 characters short");
         }
         if (userChangePasswordDto.getNewPassword().equals(userChangePasswordDto.getCurrentPassword())) {
             throw new BadParameter("New password cannot be the same as the current password");
@@ -308,7 +320,7 @@ public class UserService {
         userRepository.delete(user);
         log.info("사용자 삭제 완료: 사원번호 {}", deleteEmployeeId);
     }
-    
+
     /**
      * 사용자 목록을 페이징으로 검색하는 메서드
      * 
@@ -394,6 +406,10 @@ public class UserService {
             user.setRole(userInfoResponseDto.getRole());
             log.info("권한 변경: {}", userInfoResponseDto.getRole());
         }
+        if (userInfoResponseDto.getScope() != null) {
+            user.setScope(userInfoResponseDto.getScope());
+            log.info("구역 범위 변경: {}", userInfoResponseDto.getScope());
+        }
         if (userInfoResponseDto.getShift() != null) {
             user.setShift(userInfoResponseDto.getShift());
             log.info("근무시간 변경: {}", userInfoResponseDto.getShift());
@@ -409,8 +425,17 @@ public class UserService {
         
         // 변경된 사용자 정보를 데이터베이스에 저장
         User savedUser = userRepository.save(user);
+        // 변경된 사용자 정보를 redis에도 적용 (redis update)
+        userCacheService.saveOrUpdateUser(savedUser, USER_CACHE_TTL_MIN);
+
         log.info("변경 후 사용자 정보: {}", savedUser);
         
         log.info("사용자 정보 변경 완료: 사원번호 {}, 변경자 {}", userInfoResponseDto.getEmployeeId(), updatedBy);
+    }
+
+
+    public User searchUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BadParameter("User not found with id " + userId));
     }
 }

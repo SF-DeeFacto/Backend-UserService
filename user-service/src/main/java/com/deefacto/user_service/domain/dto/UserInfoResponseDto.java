@@ -51,6 +51,11 @@ public class UserInfoResponseDto {
      * 권한
      */
     private String role;
+
+    /**
+     * 구역 범위
+     */
+    private String scope;
     
     /**
      * 생성일
@@ -101,6 +106,7 @@ public class UserInfoResponseDto {
             .department(user.getDepartment())
             .position(user.getPosition())
             .role(user.getRole())
+                .scope(user.getScope())
             .createdAt(user.getCreatedAt())
             .updatedAt(user.getUpdatedAt())
             .shift(user.getShift())

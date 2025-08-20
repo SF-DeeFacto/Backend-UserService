@@ -11,7 +11,7 @@ public class UserMessage {
     public static class UserRequestMessage {
         private Long notificationId;
         private String zoneId;
-        private String shift; // 예: "A", "B"
+        private String shift; // 예: "DAY", "NIGHT"
     }
 
     // 사용자 조회 응답 메시지
