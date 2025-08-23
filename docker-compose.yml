@@ -34,7 +34,7 @@ services:
       - "${SERVER_PORT:-8081}:8081"
     # 환경 변수 파일 설정 (.env 파일에서 환경 변수 로드)
     env_file:
-      - .env
+      - user-service/.env
     # 환경 변수 설정
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
@@ -64,6 +64,8 @@ services:
     # 네트워크 설정
     networks:
       - deefacto-network
+    dns:
+      - 8.8.8.8
 
   # ========================================
   # MySQL 데이터베이스 서비스
