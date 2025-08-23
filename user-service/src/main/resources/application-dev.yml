@@ -17,16 +17,18 @@ server:
 spring:
   kafka:
     bootstrap-servers: localhost:9092
-  # 데이터베이스 연결 설정 (MySQL)
   datasource:
-    # MySQL 데이터베이스 연결 URL (환경 변수 사용)
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:deefacto_db}
-    # 데이터베이스 사용자명 (환경 변수에서 가져오거나 기본값 사용)
-    username: ${DB_USERNAME:deefacto}
-    # 데이터베이스 비밀번호 (환경 변수에서 가져오거나 기본값 사용)
-    password: ${DB_PASSWORD:deefacto1234}
-    # MySQL JDBC 드라이버 클래스명
+    url: jdbc:mysql://deefacto-rds-backend-prod.ctii4asq6dma.ap-northeast-2.rds.amazonaws.com:3306/deefacto-user?serverTimezone=UTC&useSSL=false&autoReconnect=true&useUnicode=true&characterEncoding=UTF-8
+    username: admin
+    password: deefacto6!
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-test-query: SELECT 1
+      validation-timeout: 5000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 1800000
   
   # Redis 설정 (로그아웃 토큰 관리용)
   data:
