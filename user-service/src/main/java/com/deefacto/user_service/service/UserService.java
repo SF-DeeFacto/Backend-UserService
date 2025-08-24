@@ -1,7 +1,7 @@
 package com.deefacto.user_service.service;
 
-import com.deefacto.user_service.common.exception.BadParameter;
-import com.deefacto.user_service.common.exception.NotFound;
+import com.deefacto.user_service.common.exception.CustomException;
+import com.deefacto.user_service.common.exception.ErrorCode;
 import com.deefacto.user_service.domain.dto.*;
 import com.deefacto.user_service.secret.jwt.TokenGenerator;
 import com.deefacto.user_service.secret.jwt.dto.TokenDto;
@@ -85,7 +85,8 @@ public class UserService {
         User existingUser = userRepository.findByEmployeeId(userRegisterDto.getEmployeeId());
         if (existingUser != null) {
             log.warn("중복 사번 등록 시도: {}", userRegisterDto.getEmployeeId());
-            throw new BadParameter("이미 존재하는 사번입니다.");
+            throw new CustomException(ErrorCode.DUPLICATE_RESOURCE, "이미 존재하는 사번입니다.");
+//            throw new BadParameter("이미 존재하는 사번입니다.");
         }
         
         // DTO를 엔티티로 변환 (데이터 전송 객체 → 데이터베이스 엔티티)
@@ -142,7 +143,8 @@ public class UserService {
         User user = userRepository.findByEmployeeId(loginDto.getEmployeeId());
         if (user == null) {
             log.warn("존재하지 않는 사용자: 사원번호 {}", loginDto.getEmployeeId());
-            throw new NotFound("User/Password is incorrect");
+            throw new CustomException(ErrorCode.UNAUTHORIZED, "User/Password is incorrect");
+//            throw new NotFound("User/Password is incorrect");
         }
         
         // 디버깅을 위한 비밀번호 정보 로깅 (개발 환경에서만 사용)
@@ -158,12 +160,14 @@ public class UserService {
                log.info("ROOT 사용자 로그인");
            } else {
                log.warn("Root 계정 비밀번호 불일치: 사원번호 {}", loginDto.getEmployeeId());
-               throw new BadParameter("User/Password is incorrect");
+               throw new CustomException(ErrorCode.UNAUTHORIZED, "User/Password is incorrect");
+//               throw new BadParameter("User/Password is incorrect");
            }
         } else {
             if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
                 log.warn("비밀번호 불일치: 사원번호 {}", loginDto.getEmployeeId());
-                throw new BadParameter("User/Password is incorrect");
+                throw new CustomException(ErrorCode.UNAUTHORIZED, "User/Password is incorrect");
+//                throw new BadParameter("User/Password is incorrect");
             }
         }
 
@@ -200,18 +204,21 @@ public class UserService {
     public void logout(String token) {
         // 토큰 유효성 검증
         if (!tokenGenerator.validateToken(token)) {
-            throw new BadParameter("Invalid token");
+            throw new CustomException(ErrorCode.INVALID_TOKEN, "Invalid token");
+//            throw new BadParameter("Invalid token");
         }
         
         // 토큰 만료 확인
         if (tokenGenerator.isTokenExpired(token)) {
-            throw new BadParameter("Expired token");
+            throw new CustomException(ErrorCode.TOKEN_EXPIRED, "Expired token");
+//            throw new BadParameter("Expired token");
         }
         
         // 액세스 토큰만 로그아웃 처리 가능 (리프레시 토큰은 로그아웃 불가)
         String tokenType = tokenGenerator.getTokenType(token);
         if (!"access".equals(tokenType)) {
-            throw new BadParameter("Only access tokens can be logged out");
+            throw new CustomException(ErrorCode.INVALID_TOKEN, "Only access tokens can be logged out");
+//            throw new BadParameter("Only access tokens can be logged out");
         }
         
         // 토큰에서 사용자 ID 추출
@@ -246,7 +253,8 @@ public class UserService {
         
         if (existingToken != null) {
             log.warn("중복 로그인 감지: 사원번호 {} (후입/선입 차단 정책 적용)", employeeId);
-            throw new BadParameter("User is already logged in. Please logout from other devices first.");
+            throw new CustomException(ErrorCode.CONFLICT_STATE, "User is already logged in. Please logout from other devices first.");
+//            throw new BadParameter("User is already logged in. Please logout from other devices first.");
         }
         
         log.debug("중복 로그인 없음: 사원번호 {}", employeeId);
@@ -286,20 +294,25 @@ public class UserService {
         // 1. 현재 비밀번호 검증
         User user = userRepository.findByEmployeeId(employeeId);
         if (user == null) {
-            throw new NotFound("User not found");
+            throw new CustomException(ErrorCode.USER_NOT_FOUND_IN_TOKEN);
+//            throw new NotFound("User not found");
         }
         if (!passwordEncoder.matches(userChangePasswordDto.getCurrentPassword(), user.getPassword())) {
-            throw new BadParameter("Current password is incorrect");
+            throw new CustomException(ErrorCode.BAD_PARAMETER, "Current password is incorrect");
+//            throw new BadParameter("Current password is incorrect");
         }
         // 2. 새 비밀번호 유효성 검증
         if (userChangePasswordDto.getNewPassword().length() < 4) {
-            throw new BadParameter("New password must be at least 4 characters long");
+            throw new CustomException(ErrorCode.INVALID_FORMAT, "New password must be at least 4 characters long");
+//            throw new BadParameter("New password must be at least 4 characters long");
         }
         if (userChangePasswordDto.getNewPassword().length() > 20) {
-            throw new BadParameter("New password must be at least 20 characters short");
+            throw new CustomException(ErrorCode.INVALID_FORMAT, "New password must be at least 20 characters short");
+//            throw new BadParameter("New password must be at least 20 characters short");
         }
         if (userChangePasswordDto.getNewPassword().equals(userChangePasswordDto.getCurrentPassword())) {
-            throw new BadParameter("New password cannot be the same as the current password");
+            throw new CustomException(ErrorCode.INVALID_FORMAT, "New password cannot be the same as the current password");
+//            throw new BadParameter("New password cannot be the same as the current password");
         }
         // 3. 비밀번호 업데이트
         user.setPassword(passwordEncoder.encode(userChangePasswordDto.getNewPassword()));
@@ -315,7 +328,8 @@ public class UserService {
         String deleteEmployeeId = userDeleteDto.getEmployeeId();
         User user = userRepository.findByEmployeeId(deleteEmployeeId);
         if (user == null) {
-            throw new NotFound("User not found");
+            throw new CustomException(ErrorCode.BAD_PARAMETER, "Delete target User not found");
+//            throw new NotFound("User not found");
         }
         userRepository.delete(user);
         log.info("사용자 삭제 완료: 사원번호 {}", deleteEmployeeId);
@@ -374,7 +388,8 @@ public class UserService {
         // 사원번호로 사용자 조회
         User user = userRepository.findByEmployeeId(userInfoResponseDto.getEmployeeId());
         if (user == null) {
-            throw new NotFound("User not found");
+            throw new CustomException(ErrorCode.BAD_PARAMETER, "Change target User not found");
+//            throw new NotFound("User not found");
         }
         
         // 디버깅을 위한 변경 전후 정보 로깅
@@ -436,6 +451,7 @@ public class UserService {
 
     public User searchUserById(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new BadParameter("User not found with id " + userId));
+                .orElseThrow(() -> new CustomException(ErrorCode.BAD_PARAMETER));
+//                .orElseThrow(() -> new BadParameter("User not found with id " + userId));
     }
 }

@@ -1,7 +1,8 @@
 package com.deefacto.user_service.controller;
 
 import com.deefacto.user_service.common.dto.ApiResponseDto;
-import com.deefacto.user_service.common.exception.BadParameter;
+import com.deefacto.user_service.common.exception.CustomException;
+import com.deefacto.user_service.common.exception.ErrorCode;
 import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.dto.UserChangePasswordDto;
 import com.deefacto.user_service.domain.dto.UserDeleteDto;
@@ -55,8 +56,8 @@ public class UserController {
     ) {
         // API Gateway에서 전달받은 헤더 검증
         if (userId == null || employeeId == null || employeeId.isEmpty()) {
-            log.warn("[회원 가입]: 잘못된 파라미터 userId: {}, employeeId: {}", userId, employeeId);
-            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
+            log.warn("[회원 프로필]: 잘못된 파라미터 userId: {}, employeeId: {}", userId, employeeId);
+            throw new CustomException(ErrorCode.INVALID_TOKEN, "X-User-Id, X-Employee-Id header is required");
         }
         
         // API Gateway에서 이미 파싱된 정보를 바로 사용하여 데이터베이스 조회
@@ -103,12 +104,12 @@ public class UserController {
             @RequestBody @Valid UserInfoResponseDto userInfoResponseDto
     ) {
         if (userId == null || adminEmployeeId == null || adminEmployeeId.isEmpty()) {
-            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
+            throw new CustomException(ErrorCode.INVALID_TOKEN, "X-User-Id, X-Employee-Id header is required");
         }
 
         User user = userService.searchUserById(userId);
         if (!user.getRole().equals("ROOT")) {
-            throw new BadParameter("You are not authorized to register user");
+            throw new CustomException(ErrorCode.FORBIDDEN, "You are not authorized to change user information");
         }
 
         userService.changeUserInfo(userInfoResponseDto, adminEmployeeId);
@@ -132,12 +133,12 @@ public class UserController {
     ) {
         // API Gateway에서 전달받은 헤더 검증
         if (userId == null || employeeId == null || employeeId.isEmpty()) {
-            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
+            throw new CustomException(ErrorCode.INVALID_TOKEN, "X-User-Id, X-Employee-Id header is required");
         }
         
         // 본인만 비밀번호 변경 가능
         if (!employeeId.equals(userChangePasswordDto.getEmployeeId())) {
-            throw new BadParameter("You can only change your own password or need ADMIN role");
+            throw new CustomException(ErrorCode.FORBIDDEN, "You can only change your own password");
         }
         
         userService.changePassword(employeeId, userChangePasswordDto);
@@ -153,16 +154,16 @@ public class UserController {
         @RequestBody @Valid UserDeleteDto userDeleteDto
     ) {
         if (userId == null || adminEmployeeId == null || adminEmployeeId.isEmpty()) {
-            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
+            throw new CustomException(ErrorCode.INVALID_TOKEN, "X-User-Id, X-Employee-Id header is required");
         }
 
         User user = userService.searchUserById(userId);
         if (!user.getRole().equals("ROOT")) {
-            throw new BadParameter("You are not authorized to register user");
+            throw new CustomException(ErrorCode.FORBIDDEN, "You are not authorized to delete user");
         }
 
         if(userDeleteDto.getEmployeeId().equals(adminEmployeeId)) {
-            throw new BadParameter("You cannot delete yourself");
+            throw new CustomException(ErrorCode.FORBIDDEN, "You cannot delete yourself");
         }
         userService.deleteUser(userDeleteDto);
         return ApiResponseDto.createOk(null, "사용자 삭제 성공");
