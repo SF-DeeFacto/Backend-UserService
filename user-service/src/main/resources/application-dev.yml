@@ -16,11 +16,12 @@ server:
 
 spring:
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+
   datasource:
-    url: jdbc:mysql://deefacto-rds-backend-prod.ctii4asq6dma.ap-northeast-2.rds.amazonaws.com:3306/deefacto-user?serverTimezone=UTC&useSSL=false&autoReconnect=true&useUnicode=true&characterEncoding=UTF-8
-    username: admin
-    password: deefacto6!
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3307}/${DB_NAME:dee-facto}?serverTimezone=UTC&useSSL=false&autoReconnect=true&useUnicode=true&characterEncoding=UTF-8
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       connection-test-query: SELECT 1
@@ -37,6 +38,7 @@ spring:
       host: ${REDIS_HOST:localhost}
       # Redis 서버 포트 (환경 변수에서 가져오거나 기본값 사용)
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:StrongPassword22!}
 
   # JPA (Java Persistence API) 설정
   jpa:
@@ -76,7 +78,7 @@ logging:
 jwt:
   # JWT 서명에 사용할 시크릿 키 (환경 변수에서 가져오거나 기본값 사용)
   # 실제 운영 환경에서는 환경 변수나 외부 설정으로 관리해야 함
-  secret-key: ${JWT_SECRET_KEY_DEV:eW91ci1kZXYtc2VjcmV0LWtleS1oZXJlLW1pbmltdW0tMzItY2hhcmFjdGVycy1sb25n}
+  secret-key: ${JWT_SECRET_KEY_DEV}
   
   # 리프레시 토큰 만료 시간 (환경 변수에서 가져오거나 기본값 86400초 사용)
   # 86400초 = 24시간
