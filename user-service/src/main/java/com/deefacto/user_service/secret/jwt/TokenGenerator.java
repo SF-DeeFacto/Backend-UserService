@@ -3,6 +3,8 @@ package com.deefacto.user_service.secret.jwt;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
+import com.deefacto.user_service.common.exception.CustomException;
+import com.deefacto.user_service.common.exception.ErrorCode;
 import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.repository.UserRepository;
 import com.deefacto.user_service.service.UserCacheService;
@@ -10,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import com.deefacto.user_service.secret.jwt.dto.TokenDto;
-import com.deefacto.user_service.common.exception.BadParameter;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -215,12 +216,12 @@ public class TokenGenerator {
     public TokenDto.AccessToken refreshAccessToken(String refreshToken) {
         // 리프레시 토큰 유효성 검증
         if (!validateToken(refreshToken)) {
-            throw new BadParameter("Invalid refresh token");
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
         
         // 리프레시 토큰 만료 확인
         if (isTokenExpired(refreshToken)) {
-            throw new BadParameter("Expired refresh token");
+            throw new CustomException(ErrorCode.TOKEN_EXPIRED);
         }
         
         // 리프레시 토큰에서 사용자 ID 추출

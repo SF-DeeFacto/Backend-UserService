@@ -15,9 +15,6 @@
 # Gradle을 사용하여 애플리케이션을 빌드하는 단계
 FROM gradle:8.4-jdk17 AS build
 
-# 빌드 시점에 APP_NAME 전달 받기
-ARG APP_NAME=user-service
-
 # 작업 디렉토리 설정
 WORKDIR /app
 
@@ -70,4 +67,5 @@ EXPOSE 8081
 
 # 애플리케이션 실행
 ENTRYPOINT ["java", "-jar", "app.jar"]
+
 

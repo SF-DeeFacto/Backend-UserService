@@ -32,3 +32,4 @@ public class ApiCommonAdvice {
                 .body(ApiResponseDto.createError("COMMON500", "Internal Server Error"));
     }
 }
+
