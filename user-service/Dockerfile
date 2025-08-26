@@ -39,7 +39,7 @@ RUN gradle build -x test --no-daemon
 FROM eclipse-temurin:17-jre-alpine
 
 # 메타데이터 설정
-LABEL maintainer="deefacto"
+LABEL maintainer="deefacto User"
 LABEL description="User Service for Deefacto Platform"
 
 # 작업 디렉토리 설정
@@ -67,3 +67,5 @@ EXPOSE 8081
 
 # 애플리케이션 실행
 ENTRYPOINT ["java", "-jar", "app.jar"]
+
+

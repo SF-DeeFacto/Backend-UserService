@@ -16,17 +16,20 @@ server:
 
 spring:
   kafka:
-    bootstrap-servers: localhost:9092
-  # 데이터베이스 연결 설정 (MySQL)
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+
   datasource:
-    # MySQL 데이터베이스 연결 URL (환경 변수 사용)
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:deefacto_db}
-    # 데이터베이스 사용자명 (환경 변수에서 가져오거나 기본값 사용)
-    username: ${DB_USERNAME:deefacto}
-    # 데이터베이스 비밀번호 (환경 변수에서 가져오거나 기본값 사용)
-    password: ${DB_PASSWORD:deefacto1234}
-    # MySQL JDBC 드라이버 클래스명
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3307}/${DB_NAME:dee-facto}?serverTimezone=UTC&useSSL=false&autoReconnect=true&useUnicode=true&characterEncoding=UTF-8
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-test-query: SELECT 1
+      validation-timeout: 5000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 1800000
   
   # Redis 설정 (로그아웃 토큰 관리용)
   data:
@@ -35,6 +38,7 @@ spring:
       host: ${REDIS_HOST:localhost}
       # Redis 서버 포트 (환경 변수에서 가져오거나 기본값 사용)
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:StrongPassword22!}
 
   # JPA (Java Persistence API) 설정
   jpa:
@@ -74,7 +78,7 @@ logging:
 jwt:
   # JWT 서명에 사용할 시크릿 키 (환경 변수에서 가져오거나 기본값 사용)
   # 실제 운영 환경에서는 환경 변수나 외부 설정으로 관리해야 함
-  secret-key: ${JWT_SECRET_KEY_DEV:eW91ci1kZXYtc2VjcmV0LWtleS1oZXJlLW1pbmltdW0tMzItY2hhcmFjdGVycy1sb25n}
+  secret-key: ${JWT_SECRET_KEY_DEV}
   
   # 리프레시 토큰 만료 시간 (환경 변수에서 가져오거나 기본값 86400초 사용)
   # 86400초 = 24시간
