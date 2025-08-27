@@ -30,7 +30,7 @@ RUN gradle dependencies --no-daemon
 COPY src ./src
 
 # 애플리케이션 빌드
-RUN gradle build --no-daemon
+RUN gradle build -x test --no-daemon
 
 # ========================================
 # 런타임 단계 (Runtime Stage)
@@ -39,7 +39,7 @@ RUN gradle build --no-daemon
 FROM eclipse-temurin:17-jre-alpine
 
 # 메타데이터 설정
-LABEL maintainer="deefacto"
+LABEL maintainer="deefacto User"
 LABEL description="User Service for Deefacto Platform"
 
 # 작업 디렉토리 설정
@@ -66,4 +66,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
 EXPOSE 8081
 
 # 애플리케이션 실행
-ENTRYPOINT ["java", "-jar", "app.jar"] 
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+

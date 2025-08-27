@@ -1,5 +1,7 @@
 package com.deefacto.user_service.controller;
 
+import com.deefacto.user_service.common.exception.CustomException;
+import com.deefacto.user_service.common.exception.ErrorCode;
 import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.dto.UserLoginDto;
 import lombok.extern.slf4j.Slf4j;
@@ -10,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.deefacto.user_service.common.dto.ApiResponseDto;
-import com.deefacto.user_service.common.exception.BadParameter;
 import com.deefacto.user_service.domain.dto.UserRegisterDto;
 import com.deefacto.user_service.secret.jwt.dto.TokenDto;
 import com.deefacto.user_service.service.UserService;
@@ -66,11 +67,11 @@ public class UserAuthController {
     ) {
         if (userId == null || adminEmployeeId == null || adminEmployeeId.isEmpty()) {
             log.warn("[회원 가입]: 잘못된 파라미터 userId: {}, employeeId: {}", userId, adminEmployeeId);
-            throw new BadParameter("X-User-Id, X-Employee-Id header is required");
+            throw new CustomException(ErrorCode.INVALID_TOKEN, "X-User-Id, X-Employee-Id header is required");
         }
         User user = userService.searchUserById(userId);
         if (!user.getRole().equals("ROOT")) {
-            throw new BadParameter("You are not authorized to register user");
+            throw new CustomException(ErrorCode.FORBIDDEN, "You are not authorized to register user");
         }
 
         // UserService를 통해 사용자 등록 처리
@@ -129,7 +130,7 @@ public class UserAuthController {
             String token = bearerToken.substring(7);
             userService.logout(token);
         } else {
-            throw new BadParameter("Authorization header with Bearer token is required");
+            throw new CustomException(ErrorCode.INVALID_TOKEN, "Authorization header with Bearer token is required");
         }
         return ApiResponseDto.createOk(null, "로그아웃 성공");
     }

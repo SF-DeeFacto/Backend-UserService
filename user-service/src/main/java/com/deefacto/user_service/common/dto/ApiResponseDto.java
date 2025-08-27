@@ -3,7 +3,6 @@ package com.deefacto.user_service.common.dto;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-
 @Getter
 @NoArgsConstructor
 public class ApiResponseDto<T> {
