@@ -97,7 +97,7 @@ public class UserController {
     }
 
     // 사용자 정보 변경
-    @PostMapping("info/change")
+    @PostMapping("/info/change")
     public ApiResponseDto<String> changeUserInfo(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-Employee-Id", required = false) String adminEmployeeId,
