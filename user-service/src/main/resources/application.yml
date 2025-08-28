@@ -3,7 +3,7 @@
 # ========================================
 # 
 # 이 파일은 User Service의 공통 설정만 정의합니다.
-# 환경별 설정은 application-dev.yml, application-prod.yml에서 관리합니다.
+# 환경별 설정은 application-local.yml, application-prod.yml에서 관리합니다.
 # 
 # 환경 변수 사용:
 # - ${환경변수명}: 기본값 없이 환경 변수 사용
