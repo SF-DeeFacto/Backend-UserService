@@ -247,17 +247,27 @@ public class UserService {
      * @param employeeId 사용자 사원번호
      * @throws BadParameter 기존 로그인이 존재하는 경우
      */
+//    private void checkDuplicateLogin(String employeeId) {
+//        String userTokenKey = "user_token:" + employeeId;
+//        String existingToken = redisTemplate.opsForValue().get(userTokenKey);
+//
+//        if (existingToken != null) {
+//            log.warn("중복 로그인 감지: 사원번호 {} (후입/선입 차단 정책 적용)", employeeId);
+//            throw new CustomException(ErrorCode.CONFLICT_STATE, "User is already logged in. Please logout from other devices first.");
+////            throw new BadParameter("User is already logged in. Please logout from other devices first.");
+//        }
+//
+//        log.debug("중복 로그인 없음: 사원번호 {}", employeeId);
+//    }
     private void checkDuplicateLogin(String employeeId) {
         String userTokenKey = "user_token:" + employeeId;
         String existingToken = redisTemplate.opsForValue().get(userTokenKey);
-        
+
         if (existingToken != null) {
-            log.warn("중복 로그인 감지: 사원번호 {} (후입/선입 차단 정책 적용)", employeeId);
-            throw new CustomException(ErrorCode.CONFLICT_STATE, "User is already logged in. Please logout from other devices first.");
-//            throw new BadParameter("User is already logged in. Please logout from other devices first.");
+            log.warn("기존 로그인 세션 무효화: {}", employeeId);
+            // 기존 토큰을 logout 처리
+            redisTemplate.opsForValue().set(existingToken, "logout", 1, TimeUnit.SECONDS);
         }
-        
-        log.debug("중복 로그인 없음: 사원번호 {}", employeeId);
     }
     
     /**
