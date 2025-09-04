@@ -4,7 +4,9 @@ import com.deefacto.user_service.common.exception.CustomException;
 import com.deefacto.user_service.common.exception.ErrorCode;
 import com.deefacto.user_service.domain.Entitiy.User;
 import com.deefacto.user_service.domain.dto.UserLoginDto;
+import com.deefacto.user_service.secret.jwt.TokenGenerator;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -44,6 +46,7 @@ public class UserAuthController {
     
     // 사용자 인증 관련 비즈니스 로직 처리 서비스
     private final UserService userService;
+    private final TokenGenerator tokenGenerator;
 
     // 임시 데이터 저장용 Map (실제로는 불필요하지만 예시를 위해 유지)
     Map<String, String> data = new HashMap<>();
@@ -100,6 +103,12 @@ public class UserAuthController {
         TokenDto.AccessRefreshToken token = userService.login(userLoginDto);
         
         return ApiResponseDto.createOk(token, "로그인 성공");
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenDto.AccessToken> refresh(@RequestBody String refreshToken) {
+        TokenDto.AccessToken newAccessToken = tokenGenerator.refreshAccessToken(refreshToken);
+        return ResponseEntity.ok(newAccessToken);
     }
 
     /**
