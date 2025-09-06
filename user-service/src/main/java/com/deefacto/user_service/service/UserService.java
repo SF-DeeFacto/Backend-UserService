@@ -5,7 +5,6 @@ import com.deefacto.user_service.common.exception.ErrorCode;
 import com.deefacto.user_service.domain.dto.*;
 import com.deefacto.user_service.secret.jwt.TokenGenerator;
 import com.deefacto.user_service.secret.jwt.dto.TokenDto;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import com.deefacto.user_service.config.SecurityConfig.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -54,9 +53,6 @@ public class UserService {
 
     // Redis 유저 정보 사용을 위한 서비스
     private final UserCacheService userCacheService;
-
-    // Redis 사용을 위한 ObjectMapper
-    private final ObjectMapper objectMapper;
 
     // Redis에 저장되는 유저정보 TTL (Refresh Token 시간과 통일)
     private final long USER_CACHE_TTL_MIN = 20;
@@ -247,17 +243,27 @@ public class UserService {
      * @param employeeId 사용자 사원번호
      * @throws BadParameter 기존 로그인이 존재하는 경우
      */
+//    private void checkDuplicateLogin(String employeeId) {
+//        String userTokenKey = "user_token:" + employeeId;
+//        String existingToken = redisTemplate.opsForValue().get(userTokenKey);
+//
+//        if (existingToken != null) {
+//            log.warn("중복 로그인 감지: 사원번호 {} (후입/선입 차단 정책 적용)", employeeId);
+//            throw new CustomException(ErrorCode.CONFLICT_STATE, "User is already logged in. Please logout from other devices first.");
+////            throw new BadParameter("User is already logged in. Please logout from other devices first.");
+//        }
+//
+//        log.debug("중복 로그인 없음: 사원번호 {}", employeeId);
+//    }
     private void checkDuplicateLogin(String employeeId) {
         String userTokenKey = "user_token:" + employeeId;
         String existingToken = redisTemplate.opsForValue().get(userTokenKey);
-        
+
         if (existingToken != null) {
-            log.warn("중복 로그인 감지: 사원번호 {} (후입/선입 차단 정책 적용)", employeeId);
-            throw new CustomException(ErrorCode.CONFLICT_STATE, "User is already logged in. Please logout from other devices first.");
-//            throw new BadParameter("User is already logged in. Please logout from other devices first.");
+            log.warn("기존 로그인 세션 무효화: {}", employeeId);
+            // 기존 토큰을 logout 처리
+            redisTemplate.opsForValue().set(existingToken, "logout", 1, TimeUnit.SECONDS);
         }
-        
-        log.debug("중복 로그인 없음: 사원번호 {}", employeeId);
     }
     
     /**
