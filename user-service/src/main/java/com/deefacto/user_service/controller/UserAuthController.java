@@ -3,10 +3,10 @@ package com.deefacto.user_service.controller;
 import com.deefacto.user_service.common.exception.CustomException;
 import com.deefacto.user_service.common.exception.ErrorCode;
 import com.deefacto.user_service.domain.Entitiy.User;
+import com.deefacto.user_service.domain.dto.RefreshTokenRequestDto;
 import com.deefacto.user_service.domain.dto.UserLoginDto;
 import com.deefacto.user_service.secret.jwt.TokenGenerator;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -40,7 +40,6 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/auth")
-// @RequestMapping("/")
 @RequiredArgsConstructor
 public class UserAuthController {
     
@@ -106,9 +105,10 @@ public class UserAuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<TokenDto.AccessToken> refresh(@RequestBody String refreshToken) {
-        TokenDto.AccessToken newAccessToken = tokenGenerator.refreshAccessToken(refreshToken);
-        return ResponseEntity.ok(newAccessToken);
+    public ApiResponseDto<TokenDto.AccessToken> refresh(@RequestBody RefreshTokenRequestDto request) {
+        log.info("refresh: {}", request.getRefreshToken());
+        TokenDto.AccessToken newAccessToken = tokenGenerator.refreshAccessToken(request.getRefreshToken());
+        return ApiResponseDto.createOk(newAccessToken, "Access Token 재발급 성공");
     }
 
     /**
